@@ -1,4 +1,4 @@
->📋  A partially filled out template README.md for code accompanying a Machine Learning paper.
+>📋  A **partially filled out** template README.md for code accompanying a Machine Learning paper.
 
 # My Paper Title
 
@@ -59,5 +59,7 @@ Our model achieves the following performance on :
 | My awesome model   |     85%         |      95%       |
 
 ## Contributing
+
+To edit the paper, go to [this overleaf project](https://www.overleaf.com/project/63bbfc495280d6de78aa8d20) if you have permission, or view the paper with [this link](https://www.overleaf.com/read/zpqvnmvcbgsc).
 
 >📋  Pick a licence and describe how to contribute to your code repository.
