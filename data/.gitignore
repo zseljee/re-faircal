@@ -1,0 +1,8 @@
+# Ignore everything (the datasets) as to not push them to the GitHub page
+*
+
+# Do not ignore this
+!.gitignore
+!LICENSE_BFW.md
+!license_RFW.html
+!README.md
