@@ -16,7 +16,13 @@ To install requirements, first download [miniconda](https://docs.conda.io/en/lat
 conda env create -f environment[_lock]_[cpu|gpu].yml
 ```
 
-Download the data [here](#).
+The datasets used were the BFW and RFW for verifying the original paper results.  Other datasets may be used for additional verification.  See the Table below on where to find the datasets.
+
+| Dataset | Open-source | URL |
+|---------|-------------|-----|
+| BFW     | Yes, register through Google Forms | https://github.com/visionjo/facerec-bias-bfw |
+| RFW     | No, mail for research access | http://whdeng.cn/RFW/testing.html |
+
 
 ## Training
 
