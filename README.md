@@ -20,7 +20,7 @@ The datasets used were the BFW and RFW for verifying the original paper results.
 
 | Dataset | Open-source | URL |
 |---------|-------------|-----|
-| BFW     | Yes, register through Google Forms | https://github.com/visionjo/facerec-bias-bfw |
+| BFW     | No, register through Google Forms | https://github.com/visionjo/facerec-bias-bfw |
 | RFW     | No, mail for research access | http://whdeng.cn/RFW/testing.html |
 
 

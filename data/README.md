@@ -7,5 +7,5 @@ To set up this directory correctly with the code, extract the BFW dataset into a
 The Table below was copied from the repository [README](../README.md)
 | Dataset | Open-source | URL |
 |---------|-------------|-----|
-| BFW     | Yes, register through Google Forms | https://github.com/visionjo/facerec-bias-bfw |
+| BFW     | No, register through Google Forms | https://github.com/visionjo/facerec-bias-bfw |
 | RFW     | No, mail for research access | http://whdeng.cn/RFW/testing.html |
