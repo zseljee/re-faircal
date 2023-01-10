@@ -2,7 +2,7 @@
 
 # My Paper Title
 
-This repository is the official implementation of [My Paper Title](https://arxiv.org/abs/2030.12345). Based on the paper of [Salvador (2022)](https://canvas.uva.nl/courses/32257/files/8008473?module_item_id=1553026) implemented [here](https://github.com/tiagosalvador/faircal).
+This repository is the official implementation of [My Paper Title](https://arxiv.org/abs/2030.12345). Based on the paper of [Salvador (2022)](https://openreview.net/forum?id=nRj0NcmSuxb) implemented [here](https://github.com/tiagosalvador/faircal).
 
 >📋  Optional: include a graphic explaining your approach/main result, bibtex entry, link to demos, blog posts and tutorials.
 
