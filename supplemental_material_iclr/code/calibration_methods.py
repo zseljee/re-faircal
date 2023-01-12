@@ -1,5 +1,4 @@
 import numpy as np
-import cvxpy as cp
 from sklearn.isotonic import IsotonicRegression
 
 from utils import determine_edges
