@@ -14,7 +14,7 @@ The code assumes that the embeddings from the pre-trained models and the pairs a
 
 - collect_embeddings_rfw, collect_embeddings_bfw, collect_miscellania_rfw, collect_miscellania_bfw in approaches.py
 - collect_error_embeddings_rfw, collect_error_embeddings_bfw in approaches_ftc
-- lines 208-213 in main.py
+- lines 208-213 in main.py *Jip: I think this should be 228-232*
 
 The pre-trained models to generate the embeddings were obtained from the following repos:
 
