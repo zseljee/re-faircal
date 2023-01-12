@@ -4,7 +4,6 @@ import os
 import argparse
 import torch
 
-
 from approaches import baseline
 from approaches import cluster_methods
 from approaches_ftc import ftc
@@ -282,7 +281,7 @@ def main():
                             print('skipped')
 
 
-def collect_measures_bmc_or_oracle(ground_truth, scores, confidences, nbins, subgroup_scores, subgroup):
+def collect_measures_faircal_or_oracle(ground_truth, scores, confidences, nbins, subgroup_scores, subgroup):
     if subgroup == 'Global':
         select = np.full(scores.size, True, dtype=bool)
     else:

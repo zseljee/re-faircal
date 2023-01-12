@@ -1,23 +1,16 @@
-import numpy as np
 import os
-import pandas as pd
 import pickle
+
+import numpy as np
+import pandas as pd
 import torch
-from torch import nn
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-from approaches_final import baseline
-from sklearn.cluster import KMeans
-from sklearn.metrics import roc_curve
 from sklearn.model_selection import train_test_split
+from torch import nn
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-from calibration_methods import BinningCalibration
-from calibration_methods import SplinesCalibration
-from calibration_methods import IsotonicCalibration
-from calibration_methods import BetaCalibration
-
-from approaches_final import find_threshold
+from approaches import baseline
 
 
 def agenda(dataset_name, feature, db_fold, nbins, calibration_method):

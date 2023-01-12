@@ -1,20 +1,13 @@
-import numpy as np
-import os
-import pandas as pd
 import pickle
+
+import numpy as np
 import torch
-from torch import nn
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-from approaches import naive
-from sklearn.cluster import KMeans
 from sklearn.metrics import roc_curve
+from torch import nn
+from torch.utils.data import DataLoader, Dataset
 
-from calibration_methods import BinningCalibration
-from calibration_methods import IsotonicCalibration
-from calibration_methods import BetaCalibration
-
-from approaches import find_threshold
+from approaches import naive
 
 
 def ftc(dataset_name, feature, db_fold, nbins, calibration_method):
