@@ -75,15 +75,21 @@ class BFWFold(Dataset):
         # Use iloc if index is not reset, use loc to make idx unique across folds
         row = self.dataframe.iloc[idx]
 
-        img1 = io.imread( os.path.join(self.data_root, row['p1']) )
-        img2 = io.imread( os.path.join(self.data_root, row['p2']) )
+        path1 = row['p1']
+        img1 = io.imread( os.path.join(self.data_root, path2) )
+        metrics1 = dict()
+
+        path1 = row['p1']
+        img2 = io.imread( os.path.join(self.data_root, path1) )
+        metrics2 = dict()
+        
         label = int(row['label'])
 
         if self.transform:
             img1 = self.transform(img1)
             img2 = self.transform(img2)
 
-        return (img1, img2), label
+        return (img1, row['p1'], metrics1), (img2, row['p2'], metrics2), label
         # return (img1, img2), label, row['global_index']
 
 
@@ -160,3 +166,41 @@ class BFW():
         # TODO: Convert to dataloaders?
 
         return trainSet, testSet
+    
+    def images(self, folds: Optional[int|list]=None, sample_filter: Optional[callable]=None):
+        """
+        Iterate all unique images in the dataset
+
+        Parameters:
+            folds: Optional[int|list] - Which folds to include, use all data if set to None
+            sample_filter: Optional[callable] - Optional function to filter specific images,
+                                                takes as argument the `metrics` of each image returned by BFWFold[i]
+        
+        Yields:
+            img, path, metrics - As returned by BFWFold[i][0]
+        """
+
+        # Default folds
+        if folds is None:
+            folds = self.folds
+
+        # Get all data
+        dataset = BFWFold(dataframe=self.dataframe,
+                          folds=folds,
+                          data_root=self.data_root,
+                          transform=self.test_transform)
+        
+        # Prevent duplicates
+        known_images = set()
+        
+        # Iterate dataset
+        for sample, _ in dataset:
+            # Iterate images from sample (which is a pair of images)
+            for img, path, metrics in sample:
+
+                # Filter based on previouw images and sample_filter if set
+                if path not in known_images \
+                and ( sample_filter is None or sample_filter(metrics) ):
+                
+                    known_images.add(path)
+                    yield img, path, metrics
