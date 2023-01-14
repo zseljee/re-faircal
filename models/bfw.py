@@ -1,5 +1,6 @@
 import os
 from typing import Optional
+import tqdm
 
 import pandas as pd
 
@@ -65,9 +66,7 @@ class BFWFold(Dataset):
             idx: ? - Index of the sample TODO: what type is idx?
         
         Returns:
-            img1: np.ndarray - First image of sample pair
-            img2: np.ndarray - Second image of sample pair
-            label: int - 1 if image pair is of the same person, 0 otherwise
+            WIP
         """
         if torch.is_tensor(idx):
             idx = idx.tolist()
@@ -76,11 +75,11 @@ class BFWFold(Dataset):
         row = self.dataframe.iloc[idx]
 
         path1 = row['p1']
-        img1 = io.imread( os.path.join(self.data_root, path2) )
+        img1 = io.imread( os.path.join(self.data_root, path1) )
         metrics1 = dict()
 
-        path1 = row['p1']
-        img2 = io.imread( os.path.join(self.data_root, path1) )
+        path2 = row['p2']
+        img2 = io.imread( os.path.join(self.data_root, path2) )
         metrics2 = dict()
         
         label = int(row['label'])
@@ -166,41 +165,82 @@ class BFW():
         # TODO: Convert to dataloaders?
 
         return trainSet, testSet
-    
-    def images(self, folds: Optional[int|list]=None, sample_filter: Optional[callable]=None):
+
+class BFWImages(Dataset):
+    def __init__(self,
+                 data_root: str = './data/bfw/uncropped-face-samples/',
+                 csv_file: str = './data/bfw/bfw-v0.1.5-datatable.csv',
+                 transform: Optional[Compose] = None,
+                ):
         """
-        Iterate all unique images in the dataset
+
 
         Parameters:
-            folds: Optional[int|list] - Which folds to include, use all data if set to None
-            sample_filter: Optional[callable] - Optional function to filter specific images,
-                                                takes as argument the `metrics` of each image returned by BFWFold[i]
-        
-        Yields:
-            img, path, metrics - As returned by BFWFold[i][0]
+            data_root: str - Path from which data can be found
+            csv_file: str - CSV file containing all information about the data (paths to images, labels, etc)
+            transform: Optional[Compose] - Optionally add some transformations when reading data
         """
-
-        # Default folds
-        if folds is None:
-            folds = self.folds
-
-        # Get all data
-        dataset = BFWFold(dataframe=self.dataframe,
-                          folds=folds,
-                          data_root=self.data_root,
-                          transform=self.test_transform)
         
-        # Prevent duplicates
-        known_images = set()
-        
-        # Iterate dataset
-        for sample, _ in dataset:
-            # Iterate images from sample (which is a pair of images)
-            for img, path, metrics in sample:
+        # Convert to global paths for interpretable printing
+        data_root = os.path.abspath(data_root)
+        csv_file = os.path.abspath(csv_file)
 
-                # Filter based on previouw images and sample_filter if set
-                if path not in known_images \
-                and ( sample_filter is None or sample_filter(metrics) ):
-                
-                    known_images.add(path)
-                    yield img, path, metrics
+        # Save location of data
+        self.data_root = data_root
+        
+        # Open CSV as 'data', reading of images happesn in BFWFold
+        df = pd.read_csv( csv_file )
+
+        names_left = {
+            'p1': 'path',
+            'id1': 'id',
+            'att1': 'attribute long',
+            'a1': 'attribute',
+            'g1': 'gender',
+            'e1': 'ethnicity'
+        }
+        group_left = df[ list(names_left.keys()) ].rename(columns=names_left).groupby('path').first()
+
+        names_right = {
+            'p2': 'path',
+            'id2': 'id',
+            'att2': 'attribute-long',
+            'a2': 'attribute',
+            'g2': 'gender',
+            'e2': 'ethnicity'
+        }
+        group_right = df[ list(names_right.keys()) ].rename(columns=names_right).groupby('path').first()
+
+        unique_images = pd.concat([group_left, group_right])
+        unique_images = unique_images.reset_index().drop_duplicates(subset='path')
+
+        self.dataframe = unique_images
+
+        self.transform = transform
+
+    def __len__(self):
+        """Give length of DataSet"""
+        return len(self.dataframe)
+
+    def __getitem__(self, idx):
+        """
+        Given some index, give images and label corresponding to that pair
+
+        Parameters:
+            idx: ? - Index of the sample TODO: what type is idx?
+        
+        Returns:
+            WIP
+        """
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        # Use iloc if index is not reset, use loc to make idx unique across folds
+        row = self.dataframe.iloc[idx]
+
+        img = io.imread( os.path.join(self.data_root, row['path']) )
+
+        if self.transform:
+            img = self.transform(img)
+
+        return img, row.to_dict()
