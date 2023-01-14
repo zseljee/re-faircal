@@ -15,6 +15,8 @@ from pathlib import Path
 from PIL import Image
 from typing import Callable, Iterator, Literal, TypeAlias
 
+import torch
+
 # Importing this takes long, can we speed up this so that the argparse is done
 # quicker with parsing and you don't have to wait 5 seconds until you see that
 # you missed something from it.
@@ -137,7 +139,8 @@ def do_MTCNN_cropping(args):
     unrecognised face to speed up the creation of the csv (although it
     didn't take close to anywhere as much time as running mtcnn itself.) 
     """
-    mtcnn = MTCNN()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    mtcnn = MTCNN(device=device)
     for dataset in args.datasets:
         if VERBOSITY >= 1:
             print(f"\tStarting dataset {dataset}.")
