@@ -1,5 +1,6 @@
 import os
-import pickle
+import pandas as pd
+
 
 
 def retreive_text_files(base_dir:str) -> list:
@@ -23,7 +24,7 @@ def retreive_text_files(base_dir:str) -> list:
             folder_name = root.split('/')[-1]
             pair_filename = folder_name + '/' + folder_name + '_pairs.txt'
             file_name_lst.append(pair_filename)
-            
+
     return file_name_lst
 
 
@@ -131,13 +132,15 @@ def main():
 
     if len(output) == 2:
         info_dict, set_of_filenames = output
-        with open(BASE_DIR + '/unique_picture_links.pkl', 'wb') as f:
-            pickle.dump(set_of_filenames, f)
+        with open(BASE_DIR + '/unique_picture_links.txt', 'w') as f:
+            for item in set_of_filenames:
+                f.write(item)
     
     else:
         info_dict = output[0]
-    with open(BASE_DIR + '/filtered_pairs.pkl', 'wb') as f:
-        pickle.dump(info_dict, f)
+    df = pd.DataFrame({key: pd.Series(val) for key, val in info_dict.items()})
+    df.to_csv(BASE_DIR + '/filtered_pairs.csv',)
+
 
 if __name__ == '__main__':
     main()
