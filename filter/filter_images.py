@@ -134,7 +134,7 @@ def main():
         info_dict, set_of_filenames = output
         with open(BASE_DIR + '/unique_picture_links.txt', 'w') as f:
             for item in set_of_filenames:
-                f.write(item)
+                f.write(item + '\n')
     
     else:
         info_dict = output[0]
