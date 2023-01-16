@@ -73,8 +73,8 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
                                       f'{striped_line[0]}_{int(striped_line[2]):04}']
                     label = 1
                     id1 = id2 = striped_line[0]
-                    face1_filepath = base_dir[:-4] + 'data/' + filename.split('/')[0] + striped_line[0] + facefile_names[0] + '.jpg'
-                    face2_filepath = base_dir[:-4] + 'data/' + filename.split('/')[0] + striped_line[0] + facefile_names[1] + '.jpg'
+                    face1_filepath = filename.split('/')[0] + '/' + striped_line[0] + '/' + facefile_names[0] + '.jpg'
+                    face2_filepath = filename.split('/')[0] + '/' + striped_line[0] + '/' + facefile_names[1] + '.jpg'
 
                 # handle the case where pictures of two different persons are used
                 elif len(striped_line) == 4:
@@ -83,8 +83,8 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
                     label = 0
                     id1 = striped_line[0]
                     id2 = striped_line[2]
-                    face1_filepath = base_dir[:-4] + 'data/' + filename.split('/')[0] + striped_line[0] + facefile_names[0] + '.jpg'
-                    face2_filepath = base_dir[:-4] + 'data/' + filename.split('/')[0] + striped_line[2] + facefile_names[1] + '.jpg'
+                    face1_filepath = filename.split('/')[0] + '/' + striped_line[0] + '/' + facefile_names[0] + '.jpg'
+                    face2_filepath = filename.split('/')[0] + '/' + striped_line[2] + '/' + facefile_names[1] + '.jpg'
 
                 # catch edge cases
                 else:
