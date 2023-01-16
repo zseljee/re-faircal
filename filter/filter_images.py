@@ -139,7 +139,7 @@ def main():
     else:
         info_dict = output[0]
     df = pd.DataFrame({key: pd.Series(val) for key, val in info_dict.items()})
-    df.to_csv(BASE_DIR + '/filtered_pairs.csv',index=False)
+    df.to_csv(BASE_DIR + '/filtered_pairs.csv', index=False)
 
 
 if __name__ == '__main__':
