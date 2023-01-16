@@ -2,10 +2,12 @@ import os
 from typing import Optional
 import tqdm
 
+import numpy as np
 import pandas as pd
 import pickle
 
 from skimage import io
+from PIL import Image
 
 import torch
 from torch.utils.data import Dataset
@@ -16,7 +18,6 @@ class BFWEmbeddings(Dataset):
     def __init__(self,
                  model: Optional[str] = None,
                  embeddings: Optional[str] = None,
-                 path_emb_mapping: Optional[str] = None,
                  data_root: str = './data/bfw',
                  csv_file: str = './data/bfw/bfw-v0.1.5-datatable.csv',
                  dataset: str = 'full',
@@ -33,28 +34,30 @@ class BFWEmbeddings(Dataset):
         self.data_root = data_root
 
         # Load presets from `model` parameter
-        if model in {'facenet_vggface2', 'facenet_webface'}:
-            embeddings = os.path.join(self.data_root, f'embeddings_{model}.pt')
-            path_emb_mapping = os.path.join(self.data_root, f'emb_mapping_{model}.pkl')
+        if model in {'facenet', 'facenet_webface'}:
+            embeddings = os.path.join(self.data_root, f'{model}_embeddings.pickle')
         
         # Unkown value for `model` parameter
         elif model is not None:
             raise ValueError(f"Unkown embedding model {model}")
         
-        # `embeddings` and `path_emb_mapping` should either be set via the code above, or given as parameter
-        if embeddings is None or path_emb_mapping is None:
-            raise ValueError("Either set `model` parameter or specify `embeddings` and `path_emb_mapping` parameters")
+        # `embeddings` should either be set via the code above, or given as parameter
+        if embeddings is None:
+            raise ValueError("Either set `model` parameter or specify `embeddings` parameter")
         
-        # Load embeddings using torch
-        self.embeddings: torch.Tensor = torch.load(embeddings)
+        # Load embeddings as dict mapping path to np.ndarray
+        with open(embeddings, 'rb') as f:
+            self.embeddings: dict[str, np.ndarray] = pickle.load(f)
+        
+        df = pd.read_csv( csv_file )
 
-        # Load mapping from image path to embedding index
-        with open(path_emb_mapping, 'rb') as file:
-            self.path2idx: dict[str, int] = pickle.load(file)
+        paths = set(self.embeddings.keys())
+        mask = (df['p1'].isin(paths)) & (df['p2'].isin(paths))
+        df = df[ mask ]
         
         # Open CSV containing pairs
         self.dataframes = {
-            'full': pd.read_csv( csv_file ),
+            'full': df,
             # Will be set using set_fold at the end of __init__
             'train': pd.DataFrame(data=[]),
             'test': pd.DataFrame(data=[])
@@ -66,10 +69,12 @@ class BFWEmbeddings(Dataset):
 
         # Save which folds are available
         self.folds = self.dataframes['full']['fold'].unique()
+        self.current_fold = None
 
         # Load it to first fold
         self.set_fold(self.folds[0])
 
+    
     def set_fold(self, k: int) -> None:
         """
         TODO
@@ -84,7 +89,7 @@ class BFWEmbeddings(Dataset):
         
         self.current_fold = k
         
-        mask = self.dataframes['fold'] == k
+        mask = self.dataframes['full']['fold'] == k
 
         # Test dataframe is for given fold
         self.dataframes['test'] = self.dataframes['full'][ mask ]
@@ -107,7 +112,8 @@ class BFWEmbeddings(Dataset):
         """Give length of DataSet"""
         return len(self.dataframes[self.dataset])
 
-    def __getitem__(self, idx: any) -> tuple[ torch.Tensor, torch.Tensor, int, dict[str, any] ]:
+    
+    def __getitem__(self, idx: any) -> tuple[ np.ndarray, np.ndarray, int, dict[str, any] ]:
         """
         Given some index, give embeddings and label corresponding to that pair
         TODO: Also return persion ID and sensitive attributes?
@@ -124,13 +130,11 @@ class BFWEmbeddings(Dataset):
         # Use iloc if index is not reset, use loc to make idx unique across folds
         meta = self.dataframes[self.dataset].iloc[idx]
         
-        idx1 = self.path2idx[meta['p1']]
-        emb1 = self.embeddings[idx1]
-
-        idx2 = self.path2idx[meta['p2']]
-        emb2 = self.embeddings[idx2]
+        emb1 = self.embeddings[meta['p1']]
+        emb2 = self.embeddings[meta['p2']]
 
         return emb1, emb2, meta['label'], meta.to_dict()
+
 
 class BFWImages(Dataset):
     def __init__(self,
@@ -184,10 +188,12 @@ class BFWImages(Dataset):
 
         self.transform = transform
 
+    
     def __len__(self):
         """Give length of DataSet"""
         return len(self.dataframe)
 
+    
     def __getitem__(self, idx):
         """
         Given some index, give images and label corresponding to that pair
@@ -204,7 +210,8 @@ class BFWImages(Dataset):
         # Use iloc if index is not reset, use loc to make idx unique across folds
         row = self.dataframe.iloc[idx]
 
-        img = io.imread( os.path.join(self.data_root, row['path']) )
+        # img = io.imread( os.path.join(self.data_root, row['path']) )
+        img = Image.open( os.path.join(self.data_root, row['path']) )
 
         if self.transform:
             img = self.transform(img)

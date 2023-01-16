@@ -10,11 +10,10 @@ from torchvision import transforms
 
 from facenet_pytorch import InceptionResnetV1, MTCNN
 from bfw import BFWImages
-
-DATA_ROOT = os.path.abspath('../data/bfw/uncropped-face-samples/')
+from rfw import RFWImages
 
 # Set up device
-device = torch.device( 'cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device( 'cuda' if torch.cuda.is_available() else 'cpu')
 print("Using device:", device)
 
 # Load models to CPU
@@ -26,19 +25,18 @@ models = {
 }
 print("Available models:", ', '.join(models))
 
-mtcnn = MTCNN(device=device, thresholds=[.95, .95, .95])
+# Crop images using MTCNN
+mtcnn = MTCNN(device=device)
 
 # Use BFWImages to load unique images from BFW set
 print("Setting up dataset...")
-transform = transforms.Compose([
-                # transforms.ToTensor(),
-            ])
-bfw = BFWImages(data_root=DATA_ROOT,
-                csv_file='../data/bfw/bfw-v0.1.5-datatable.csv',
-                transform=transform)
-
-# !IMPORTANT! Use batch size 1 as images are of varying size
-loader = DataLoader(bfw, batch_size=None, shuffle=False)
+datasets = {
+    'bfw': BFWImages(data_root='../data/bfw/uncropped-face-samples/',
+                     csv_file='../data/bfw/bfw-v0.1.5-datatable.csv'),
+    'rfw': RFWImages(data_root='../data/rfw/data/',
+                     csv_file='../data/rfw/txts/filtered_pairs.csv')
+}
+print("Available models:", ', '.join(datasets))
 
 # For each model...
 for modelName in models:
@@ -46,31 +44,36 @@ for modelName in models:
     print("Using model:", modelName)
     model = models[modelName].to(device)
 
-    # Save embeddings here
-    embeddings: dict[str, np.ndarray] = dict()
+    for datasetName in datasets:
 
-    # Iterate images
-    for img, meta in tqdm.tqdm(loader, ncols=100):
+        print("Using dataset", datasetName)
+        dataset = datasets[datasetName]
 
-        # Crop image using MTCNN
-        cropped_img: torch.Tensor = mtcnn(img)
+        # Save embeddings here
+        embeddings: dict[str, np.ndarray] = dict()
 
-        # No face detected (or at least not with the given threshold)
-        if cropped_img is None:
-            # TODO what to do here?
-            continue
+        # Iterate images
+        for img, meta in tqdm.tqdm(dataset, ncols=100):
 
-        # 'batch' it as a single image, model expects 4D input
-        cropped_img = cropped_img.to(device).unsqueeze(dim=0)
+            # Crop image using MTCNN
+            cropped_img: torch.Tensor = mtcnn(img)
 
-        # Create embedding
-        emb = model(cropped_img)
+            # No face detected (or at least not with the given threshold)
+            if cropped_img is None:
+                # TODO what to do here?
+                continue
 
-        # Save embedding to CPU
-        embeddings[meta['path']] = emb.detach().cpu().numpy()
+            # 'batch' it as a single image, model expects 4D input
+            cropped_img = cropped_img.to(device).unsqueeze(dim=0)
 
-    # Save embeddings to pickle file
-    fname = os.path.join(DATA_ROOT, f'{modelName}_embeddings_thrhld095.pickle')
-    print("Mapping path->embedding saved to", fname)
-    with open(fname, 'wb') as file:
-        pickle.dump(embeddings, file)
+            # Create embedding
+            emb = model(cropped_img)
+
+            # Save embedding to CPU
+            embeddings[meta['path']] = emb.detach().cpu().numpy()
+
+        # Save embeddings to pickle file
+        fname = os.path.join(dataset.data_root, f'{modelName}_embeddings.pickle')
+        print("Mapping path->embedding saved to", fname)
+        with open(fname, 'wb') as file:
+            pickle.dump(embeddings, file)
