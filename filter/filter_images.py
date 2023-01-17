@@ -57,11 +57,16 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
                 'id2': [],
                 'filepath1': [], 
                 'filepath2':[], 
-                'label': []}
+                'label': [],
+                'fold': []}
     if unique_filenames:
         set_filenames = set()
 
+
+    in_current_fold = False
+
     for filename in filename_list:
+        fold_nr = 0
         with open(base_dir + '/' + filename, 'r') as f:
             for line in f.readlines():
 
@@ -69,6 +74,10 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
 
                 # handle the case where the same person is used
                 if len(striped_line) == 3:
+                    # check the folds of the images
+                    if not in_current_fold:
+                        fold_nr += 1
+                        in_current_fold = True
                     facefile_names = [f'{striped_line[0]}_{int(striped_line[1]):04}', 
                                       f'{striped_line[0]}_{int(striped_line[2]):04}']
                     label = 1
@@ -78,6 +87,7 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
 
                 # handle the case where pictures of two different persons are used
                 elif len(striped_line) == 4:
+                    in_current_fold = False
                     facefile_names = [f'{striped_line[0]}_{int(striped_line[1]):04}', 
                                       f'{striped_line[2]}_{int(striped_line[3]):04}']
                     label = 0
@@ -98,6 +108,7 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
                     info_dict['filepath1'].append(face1_filepath)
                     info_dict['filepath2'].append(face2_filepath)
                     info_dict['label'].append(label)
+                    info_dict['fold'].append(fold_nr)
 
                     if unique_filenames:
                         set_filenames.add(face1_filepath)
