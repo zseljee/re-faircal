@@ -1,14 +1,20 @@
 import os
 import pickle
 import time
+from typing import Literal, TypeAlias
 
 import numpy as np
+import pandas as pd
 import torch
+from numpy.typing import NDArray
 from sklearn.cluster import KMeans
 from sklearn.metrics import roc_curve
 
 from calibration_methods import (BetaCalibration, BinningCalibration,
                                  IsotonicCalibration)
+
+
+FeatureType: TypeAlias = Literal["facenet", "facenet-webface", "arcface"]
 
 
 def baseline(scores, ground_truth, nbins, calibration_method, score_min=-1, score_max=1):
@@ -175,53 +181,72 @@ def find_threshold(scores, ground_truth, fpr_threshold):
     return np.min(thresholds[aux == np.min(aux)])
 
 
-def collect_embeddings_rfw(feature, db_cal):
+def collect_embeddings_rfw(feature: FeatureType, db_cal: pd.DataFrame):
+    """ Create a 2D array of embeddings in the dataframe used for calibrating
+    the K-means algorithm.
+    """
     # collect embeddings of all the images in the calibration set
-    embeddings = np.zeros((0, 512))  # all embeddings are in a 512-dimensional space
-    faces_id_num = []
+    embeddings = []  # all embeddings are in a 512-dimensional space
     if feature != 'arcface':
         for subgroup in ['African', 'Asian', 'Caucasian', 'Indian']:
-            temp = pickle.load(open('data/rfw/' + subgroup + '_' + feature + '_embeddings.pickle', 'rb'))
+            subgroup_embeddings: dict[str, NDArray] = pickle.load(open('data/rfw/' + subgroup + '_' + feature + '_embeddings.pickle', 'rb'))
             select = db_cal['ethnicity'] == subgroup
 
-            for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
-                folder_names = db_cal[select][id_face].values
-                file_names = db_cal[select][id_face] + '_000' + db_cal[select][num_face].astype(str) + '.jpg'
-                file_names = file_names.values
-                for folder_name, file_name in zip(folder_names, file_names):
-                    key = 'rfw/data/' + subgroup + '_cropped/' + folder_name + '/' + file_name
-                    if file_name not in faces_id_num:
-                        embeddings = np.concatenate((embeddings, temp[key]))
-                        faces_id_num.append(file_name)
-    else:
-        temp = pickle.load(open('data/rfw/rfw_' + feature + '_embeddings.pickle', 'rb'))
+            # Create a single dataframe of all unique faces + photos that are used.
+            unique_faces_subgroup = pd.concat([
+                db_cal[select][["id1", "num1"]]\
+                    .rename({"id1": "id", "num1": "num"}),
+                db_cal[select][["id2", "num2"]]\
+                    .rename({"id2": "id", "num2": "num"}),
+            ])\
+                .groupby(["id", "num"])\
+                .first().reset_index()\
+                .rename({"id": "foldername"})
+
+            unique_faces_subgroup["filename"] = unique_faces_subgroup["foldername"] + '_000' + unique_faces_subgroup["num"].astype(str) + ".jpg"
+
+            # Add all unique embeddings
+            for i, row in unique_faces_subgroup.iterrows():
+                folder_name, file_name = row["foldername"], row["filename"]
+                key = 'rfw/data/' + subgroup + '_cropped/' + folder_name + '/' + file_name
+                embeddings.append(subgroup_embeddings[key].reshape(1, -1))
+
+    else:  # facenet, facenet-webface
+        all_embeddings: dict[str, NDArray] = pickle.load(open('data/rfw/rfw_' + feature + '_embeddings.pickle', 'rb'))
         for subgroup in ['African', 'Asian', 'Caucasian', 'Indian']:
             select = db_cal['ethnicity'] == subgroup
 
-            for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
-                folder_names = db_cal[select][id_face].values
-                file_names = db_cal[select][id_face] + '_000' + db_cal[select][num_face].astype(str) + '.jpg'
-                file_names = file_names.values
-                for folder_name, file_name in zip(folder_names, file_names):
-                    key = 'rfw/data/' + subgroup + '/' + folder_name + '/' + file_name
-                    if file_name not in faces_id_num:
-                        embeddings = np.concatenate((embeddings, temp[key].reshape(1, -1)))
-                        faces_id_num.append(file_name)
+            # Create a single dataframe of all unique faces + photos that are used.
+            unique_faces_subgroup = pd.concat([
+                db_cal[select][["id1", "num1"]]\
+                    .rename({"id1": "id", "num1": "num"}),
+                db_cal[select][["id2", "num2"]]\
+                    .rename({"id2": "id", "num2": "num"}),
+            ])\
+                .groupby(["id", "num"])\
+                .first().reset_index()\
+                .rename({"id": "foldername"})
 
-    return embeddings
+            unique_faces_subgroup["filename"] = unique_faces_subgroup["foldername"] + '_000' + unique_faces_subgroup["num"].astype(str) + ".jpg"
+
+            # Add all unique embeddings
+            for i, row in unique_faces_subgroup.iterrows():
+                folder_name, file_name = row["foldername"], row["filename"]
+                key = 'rfw/data/' + subgroup + '/' + folder_name + '/' + file_name
+                embeddings.append(all_embeddings[key].reshape(1, -1))
+
+    return np.concatenate(embeddings)
 
 
-def collect_embeddings_bfw(feature, db_cal):
-    # collect embeddings of all the images in the calibration set
-    embeddings = np.zeros((0, 512))  # all embeddings are in a 512-dimensional space
-    file_names_visited = []
-    temp = pickle.load(open('data/bfw/' + feature + '_embeddings.pickle', 'rb'))
-    for path in ['path1', 'path2']:
-        file_names = db_cal[path].values
-        for file_name in file_names:
-            if file_name not in file_names_visited:
-                embeddings = np.concatenate((embeddings, temp[file_name].reshape(1, -1)))
-                file_names_visited.append(file_name)
+def collect_embeddings_bfw(feature: FeatureType, db_cal: pd.DataFrame):
+    """ Create a 2D array of embeddings in the dataframe used for calibrating
+    the K-means algorithm.
+    """
+    all_embeddings = pickle.load(open('data/bfw/' + feature + '_embeddings.pickle', 'rb'))
+    unique_file_names = np.union1d(db_cal["path1"].unique(), db_cal["path2"].unique())
+    embeddings = np.concatenate([
+        all_embeddings[filename].reshape(1, -1) for filename in unique_file_names
+    ])
 
     return embeddings
 
