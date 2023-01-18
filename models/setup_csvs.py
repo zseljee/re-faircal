@@ -73,20 +73,15 @@ def collect_csv_rfw(args: argparse.Namespace) -> pd.DataFrame:
 
 	print("\nRFW", "="*20)
 	df = pd.read_csv(args.csv_path_rfw_in)
-	# id1,id2,filepath1,filepath2,label
+	# id1,id2,path1,path2,label,fold,ethnicity,num1,num2
 
 	# Rename columns
-	renames = {
-		'id1': 'num1',
-		'id2': 'num2',
-		'filepath1': 'path1',
-		'filepath2': 'path2'
-	}
-	df.rename(mapper=renames, axis='columns', inplace=True)
+	# renames = {
+
+	# }
+	# df.rename(mapper=renames, axis='columns', inplace=True)
 	
 	# Set some columns
-	df['id1'] = df['ethnicity']
-	df['id2'] = df['ethnicity']
 	df['same'] = df['label'].astype(bool)
 	df['pair'] = df['same'].map(lambda x: 'Genuine' if x else 'Imposter')
 
@@ -164,8 +159,10 @@ if __name__ == '__main__':
 
 	for keyword in vars(args):
 		path = getattr(args, keyword)
+		path = os.path.abspath(path)
+		setattr(args, keyword, path)
 		if not os.path.isfile(path):
-			raise ValueError("Parameter {} with path {} not found".format(keyword, os.path.abspath(path)))
+			raise ValueError("Parameter {} with path {} not found".format(keyword, path))
 	
 	collect_csv_bfw(args)
 	collect_csv_rfw(args)
