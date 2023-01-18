@@ -55,11 +55,13 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
     
     info_dict = {'id1': [],
                 'id2': [],
-                'filepath1': [], 
-                'filepath2':[], 
+                'path1': [], 
+                'path2':[], 
                 'label': [],
                 'fold': [],
-                'ethnicity': []}
+                'ethnicity': [],
+                'num1': [],
+                'num2': [],}
 
     if unique_filenames:
         set_filenames = set()
@@ -76,6 +78,7 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
 
                 # handle the case where the same person is used
                 if len(striped_line) == 3:
+
                     # check the folds of the images
                     if not in_current_fold:
                         fold_nr += 1
@@ -84,6 +87,7 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
                                       f'{striped_line[0]}_{int(striped_line[2]):04}']
                     label = 1
                     id1 = id2 = striped_line[0]
+                    img_id1, img_id2 = striped_line[1], striped_line[2]
                     face1_filepath = ethnicity + '/' + striped_line[0] + '/' + facefile_names[0] + '.jpg'
                     face2_filepath = ethnicity + '/' + striped_line[0] + '/' + facefile_names[1] + '.jpg'
 
@@ -95,6 +99,7 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
                     label = 0
                     id1 = striped_line[0]
                     id2 = striped_line[2]
+                    img_id1, img_id2 = striped_line[1], striped_line[3]
                     face1_filepath = ethnicity + '/' + striped_line[0] + '/' + facefile_names[0] + '.jpg'
                     face2_filepath = ethnicity + '/' + striped_line[2] + '/' + facefile_names[1] + '.jpg'
 
@@ -107,11 +112,14 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
 
                     info_dict['id1'].append(id1)
                     info_dict['id2'].append(id2)
-                    info_dict['filepath1'].append(face1_filepath)
-                    info_dict['filepath2'].append(face2_filepath)
+                    info_dict['path1'].append(face1_filepath)
+                    info_dict['path2'].append(face2_filepath)
                     info_dict['label'].append(label)
                     info_dict['fold'].append(fold_nr)
                     info_dict['ethnicity'].append(ethnicity)
+                    info_dict['num1'].append(img_id1)
+                    info_dict['num2'].append(img_id2)
+
 
                     if unique_filenames:
                         set_filenames.add(face1_filepath)
