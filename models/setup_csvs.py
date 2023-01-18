@@ -144,7 +144,7 @@ if __name__ == '__main__':
 
 	parser.add_argument("--csv_path_rfw_in",
 		type=str,
-		default='./../data/rfw/filtered_pairs.csv',
+		default='./../data/rfw/txts/filtered_pairs.csv',
 		help="Path to the `filtered_pairs.csv` file",
 	)
 
