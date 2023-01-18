@@ -61,7 +61,11 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
     if unique_filenames:
         set_filenames = set()
 
+    ids = dict()
+    sad_faces = set()
+
     for filename in filename_list:
+        ethnicity = filename.split('/')[0]
         with open(base_dir + '/' + filename, 'r') as f:
             for line in f.readlines():
 
@@ -93,6 +97,15 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
                 # filter the images
                 if all(item not in unrecognized_faces_names_lst for item in facefile_names):
 
+#                     if id1 in ids and ids[id1] != ethnicity:
+#                         print(id1, ethnicity, ids[id1])
+# 
+#                     if id2 in ids and ids[id2] != ethnicity:
+#                         print(id2, ethnicity, ids[id2])
+
+                    ids[id1] = ethnicity
+                    ids[id2] = ethnicity
+
                     info_dict['id1'].append(id1)
                     info_dict['id2'].append(id2)
                     info_dict['filepath1'].append(face1_filepath)
@@ -102,6 +115,15 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
                     if unique_filenames:
                         set_filenames.add(face1_filepath)
                         set_filenames.add(face2_filepath)
+                else:
+                    if facefile_names[0] not in unrecognized_faces_names_lst:
+                        # print("First is sad")
+                        sad_faces.add(face1_filepath)
+                    elif facefile_names[1] not in unrecognized_faces_names_lst:
+                        # print("Second is sad")
+                        sad_faces.add(face2_filepath)
+
+    print(len(sad_faces), len(sad_faces - set_filenames))
 
     if unique_filenames:
         return info_dict, set_filenames
