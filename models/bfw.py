@@ -19,7 +19,7 @@ class BFWEmbeddings(Dataset):
                  model: Optional[str] = None,
                  embeddings: Optional[str] = None,
                  data_root: str = './data/bfw',
-                 csv_file: str = './data/bfw/bfw-v0.1.5-datatable.csv',
+                 csv_file: str = './data/bfw/bfw.csv',
                  dataset: str = 'full',
                 ):
         """
@@ -43,19 +43,21 @@ class BFWEmbeddings(Dataset):
         
         # `embeddings` should either be set via the code above, or given as parameter
         if embeddings is None:
-            raise ValueError("Either set `model` parameter or specify `embeddings` parameter")
+            raise ValueError("Either set `model` or `embeddings` parameter")
         
         # Load embeddings as dict mapping path to np.ndarray
         with open(embeddings, 'rb') as f:
             self.embeddings: dict[str, np.ndarray] = pickle.load(f)
         
+        # Load all image pairs
         df = pd.read_csv( csv_file )
 
+        # Filter embeddings to only include embedded images
         paths = set(self.embeddings.keys())
-        mask = (df['p1'].isin(paths)) & (df['p2'].isin(paths))
+        mask = (df['path1'].isin(paths)) & (df['path2'].isin(paths))
         df = df[ mask ]
         
-        # Open CSV containing pairs
+        # Set up some pairs
         self.dataframes = {
             'full': df,
             # Will be set using set_fold at the end of __init__
