@@ -9,10 +9,10 @@ from args import args
 from constants import *
 from dataset import Dataset
 
-from faircal import faircal
+from approaches import faircal, baseline
 
 APPROACHES = {
-    'baseline': NotImplementedError(),
+    'baseline': baseline,
     'faircal': faircal
 }
 
@@ -84,11 +84,16 @@ def gather_results(dataset: Dataset,
 
     data = {}
 
-    for fold in dataset.folds:
-        # Set to train fold
-        dataset.select(fold=[f for f in dataset.folds if f != fold])
+    for k in dataset.folds:
+        dataset.set_fold(k)
+        data[f'fold{k}'] = APPROACHES[conf.approach](dataset=dataset, conf=conf)
 
-        data[f'fold{fold}'] = APPROACHES[conf.approach](dataset=dataset, conf=conf)
+
+        for subgroup in dataset.iterate_subgroups():
+            dataset.select_subgroup(**subgroup)
+            print(subgroup, len(dataset))
+        
+        break
     
     return data
 
