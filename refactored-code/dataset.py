@@ -1,3 +1,5 @@
+# TODO: Combine `iterate_subgroups` and `select_subgroup` into `iterate_select_subgroup`?
+
 from typing import Any, Iterable
 import itertools
 
@@ -16,6 +18,7 @@ class Dataset(object):
         if dataset not in AVAILABLE_DATASETS:
             raise ValueError(f"Unkown dataset {dataset}, please choose one of {set(AVAILABLE_DATASETS.keys())}")
         self.name: str = dataset
+        self.feature: str = feature
         
         # Load dataset constants
         self.consts: dict[str, Any] = AVAILABLE_DATASETS[dataset]
@@ -25,6 +28,11 @@ class Dataset(object):
         self.df: pd.DataFrame = self._df.copy()
         self.folds: np.ndarray = self._df['fold'].unique()
         self.fold: int|None = None
+
+        if feature not in self._df.columns:
+            s = f"Could not set up dataset {self.name} with feature {self.feature}"
+            s+= f", please specify the column {self.feature} as similiarty score between embeddings."
+            raise ValueError(s)
 
         # Load embeddings
         self.load_embeddings(self.consts['embeddings'], feature)
@@ -66,10 +74,10 @@ class Dataset(object):
         if len(shape) != 1:
             raise ValueError("Could not parse embedding of shape", shape)
         
-        emb_size = shape[0]
+        self.emb_size = shape[0]
 
         # Set up embeddings matrix
-        self._embeddings = np.zeros( (len(self.embidx2path), emb_size) )
+        self._embeddings = np.zeros( (len(self.embidx2path), self.emb_size) )
 
         # Fill with embeddings from dict
         for i,path in enumerate(self.embidx2path):
@@ -94,23 +102,66 @@ class Dataset(object):
         self.fold = k
 
 
-    def scores(self, approach: str) -> tuple[np.ndarray, np.ndarray]:
+    def get_scores(self, include_gt: bool = False) -> np.ndarray|tuple[np.ndarray, np.ndarray]:
         """
         Returns the 'score' and ground truth of the dataset for a given feature as numpy arrays.
-        Assumes score is saved in a column in the dataframe with the same name as the approach
+        Assumes score is saved in a column in the dataframe with the same name as the feature
 
         Score is a value between -1 and 1, corresponding to the dot product between the embeddings of the images
-        of that pair of images. Should be saved in the csv of the dataset named after the approach that created
+        of that pair of images. Should be saved in the csv of the dataset named after the feature that created
         the embeddings, such as 'facenet-webface' or 'arcface'.
 
-        Ground truth is the 'same' column of t
+        If include_gt is set to True, ground truth is also returned as numpy array. Ground truth is the
+        'same' column of the dataframe.
         """
-        if approach not in self.df.columns:
-            raise ValueError(f"Approach {approach} has no scores in dataset {self.name}. Please add a column with scores for this feature.")
+        # Get scores using set feature
+        scores = self.df[self.feature].to_numpy(copy=True)
         
-        scores = self.df[approach].to_numpy(copy=True)
+        # Only return scores
+        if not include_gt:
+            return scores
+            
+        # Also return ground truth
         ground_truth = self.df['same'].to_numpy(copy=True)#, dtype=int) TODO: current is bool, should be int?
         return scores, ground_truth
+
+
+    def get_embeddings(self, train=False) -> np.ndarray:
+        """
+        Get a numpy array containing the embeddings of the dataset, where each embedding is saved as a row
+        If a fold is set (ie `Dataset.fold is not None`), use the `train` parameter to choose between the training
+        or test data of the current fold. If no fold is set, `train` is ignored.
+
+        Embeddings use the current selection of data, using a different `Dataset.select` will (potentially) result
+        in different embeddings. The returned embeddings come from the set of paths of the current dataframe,
+        to get embedding pairs, see ... TODO
+
+        Returned embeddings are a copy of the embeddings saved internally.
+
+        Parameters:
+            train: bool - If a fold is set, whether to include data only using that fold (when `train=False`),
+                          or anything but (when `train=True`). Ignored if no fold is set
+        
+        Returns:
+            embeddings: np.ndarray - Embeddings for t
+        """
+        # Use current selection
+        df = self.df.copy()
+
+        # Use selection of current fold
+        if self.fold is not None:
+            select = (df['fold'] != self.fold) if train else (df['fold'] == self.fold)
+            df = df[select]
+
+        # Get embedding paths from path1 and path2 column in data
+        paths = set( df['path1'] ) | set( df['path2'] )
+        
+        # Convert paths to indices of embeddings
+        idxs = [self.path2embidx[path] for path in paths]
+
+        # Copy embeddings at idxs
+        # TODO might be redundent to copy?
+        return np.copy(self._embeddings[idxs])
 
 
     def iterate_subgroups(self, use_attributes: str|Iterable[str]|None = None) -> Iterable[ dict[str, Any] ]:
@@ -177,7 +228,7 @@ class Dataset(object):
         self.select(**select)
 
     
-    def select(self, keep_existing: bool=False, **constraints: dict[str, Any|list[Any]|set[Any]]) -> None:
+    def select(self, use_previous_selection: bool=False, **constraints: dict[str, Any|list[Any]|set[Any]]) -> None:
         """
         Set some constraints on the dataset, such as fold or ethnicity.
 
@@ -189,10 +240,10 @@ class Dataset(object):
         selects the data from folds 1 to 4, where ethnicity is Asian.
 
         Parameters:
-            keep_existing: bool - Whether to reset entire selection, or continue on previous
+            use_previous_selection: bool - Whether to reset entire selection, or continue on previous
             kwarg: Any|list[Any]|set[Any] - A value, a list or a set of values
         """
-        df = (self.df if keep_existing else self._df).copy()
+        df = (self.df if use_previous_selection else self._df).copy()
 
         constraintCols = set(constraints.keys())
         dataCols = set(df.columns)
