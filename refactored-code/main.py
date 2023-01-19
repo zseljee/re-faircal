@@ -85,19 +85,22 @@ def gather_results(dataset: Dataset,
     data = {}
 
     for k in dataset.folds:
+        print(f"\nFold {k}", '~'*60)
         dataset.set_fold(k)
+
         data[f'fold{k}'] = APPROACHES[conf.approach](dataset=dataset, conf=conf)
 
 
         for subgroup in dataset.iterate_subgroups():
             dataset.select_subgroup(**subgroup)
-            print(subgroup, len(dataset))
+            print(f"Using subgroup {subgroup}, containing {len(dataset)} pairs")
+
+            embeddings = dataset.get_embeddings(train=True)
+            print(f"Current subgroup has {embeddings.shape[0]} unique embeddings")
         
         break
     
     return data
-
-
 
 
 def main():
@@ -120,8 +123,10 @@ def main():
         
         # np.save(saveto, {})
         data = gather_results(dataset=dataset, conf=conf)
+        print("Experiment finished, results:")
         print(data)
         # np.save(saveto, data)
+    print("Done!")
         
 
 if __name__ == '__main__':
