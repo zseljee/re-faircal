@@ -68,12 +68,20 @@ for modelName in models:
 
             # Create embedding
             emb = model(cropped_img)
+            emb = emb.detach().cpu().numpy()
 
             # Save embedding to CPU
-            embeddings[meta['path']] = emb.detach().cpu().numpy()
+            embeddings['full'][meta['path']] = emb
+            embeddings[meta['ethnicity']][meta['path']] = emb
 
         # Save embeddings to pickle file
-        fname = os.path.join(dataset.data_root, f'{modelName}_embeddings.pickle')
-        print("Mapping path->embedding saved to", fname)
-        with open(fname, 'wb') as file:
-            pickle.dump(embeddings, file)
+        for subset in embeddings:
+            embeddings_subset = embeddings[subset]
+            if subset == 'full':
+                fname = os.path.join(dataset.data_root, f'{modelName}_embeddings.pickle')
+            else:
+                fname = os.path.join(dataset.data_root, f'{subset}_{modelName}_embeddings.pickle')
+
+            print("Mapping path->embedding saved to", fname)
+            with open(fname, 'wb') as file:
+                pickle.dump(embeddings, file)
