@@ -10,6 +10,7 @@ from constants import *
 from dataset import Dataset
 
 from approaches import faircal, baseline
+from visualisations import violinplot
 
 APPROACHES = {
     'baseline': baseline,
@@ -56,7 +57,7 @@ def iterate_configurations() -> Namespace:
         )
 
 
-def get_experiment_folder(conf: Namespace, makedirs: bool=False) -> str:
+def get_experiment_folder(conf: Namespace, makedirs: bool=True) -> str:
     """
     Given a configuration, return path to a folder to save
     results for this configuration.
@@ -89,16 +90,6 @@ def gather_results(dataset: Dataset,
         dataset.set_fold(k)
 
         data[f'fold{k}'] = APPROACHES[conf.approach](dataset=dataset, conf=conf)
-
-
-        for subgroup in dataset.iterate_subgroups():
-            dataset.select_subgroup(**subgroup)
-            print(f"Using subgroup {subgroup}, containing {len(dataset)} pairs")
-
-            embeddings = dataset.get_embeddings(train=True)
-            print(f"Current subgroup has {embeddings.shape[0]} unique embeddings")
-        
-        break
     
     return data
 
@@ -112,20 +103,20 @@ def main():
         # Save results of the experiment in this folder
         exp_folder = get_experiment_folder(conf)
 
-        dataset = Dataset(dataset=conf.dataset, feature=conf.feature)
+        dataset = Dataset(name=conf.dataset, feature=conf.feature)
         
         # Check if experiment is already run
         saveto = os.path.join( exp_folder, 'results.npy' )
-        print("Saving results to", saveto)
-        if os.path.isfile(saveto):
-            print("Results file already exists, skipping")
-            continue
+        if not os.path.isfile(saveto):
+            print("Saving results to", saveto)
         
-        # np.save(saveto, {})
-        data = gather_results(dataset=dataset, conf=conf)
-        print("Experiment finished, results:")
-        print(data)
-        # np.save(saveto, data)
+            np.save(saveto, {})
+            data = gather_results(dataset=dataset, conf=conf)
+            print("Experiment finished")
+            # print(data)
+            np.save(saveto, data)
+
+        violinplot(dataset, conf)
     print("Done!")
         
 

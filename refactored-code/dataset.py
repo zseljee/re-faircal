@@ -11,17 +11,17 @@ from constants import *
 
 class Dataset(object):
     def __init__(self,
-                 dataset: str,
+                 name: str,
                  feature: str):
 
         # Check availability of dataset
-        if dataset not in AVAILABLE_DATASETS:
-            raise ValueError(f"Unkown dataset {dataset}, please choose one of {set(AVAILABLE_DATASETS.keys())}")
-        self.name: str = dataset
+        if name not in AVAILABLE_DATASETS:
+            raise ValueError(f"Unkown dataset {name}, please choose one of {set(AVAILABLE_DATASETS.keys())}")
+        self.name: str = name
         self.feature: str = feature
         
         # Load dataset constants
-        self.consts: dict[str, Any] = AVAILABLE_DATASETS[dataset]
+        self.consts: dict[str, Any] = AVAILABLE_DATASETS[name]
         
         # Read CSV of pairs
         self._df: pd.DataFrame = pd.read_csv( self.consts['csv'] )
@@ -93,16 +93,18 @@ class Dataset(object):
         Will raise ValueError if k is not found in df['fold']. You are adviced to use
         for k in Dataset.folds:
             Dataset.set_fold(k)
+        
+        Set k to None to include all data
 
         Parameters:
-            k: int - Fold to choose
+            k: int|None - Fold to choose
         """
         if k is not None and k not in self.folds:
             raise ValueError(f"Unkown fold {k}, please choose from {self.folds}")
         self.fold = k
 
 
-    def get_scores(self, include_gt: bool = False) -> np.ndarray|tuple[np.ndarray, np.ndarray]:
+    def get_scores(self, include_gt: bool = False, train: bool=False) -> np.ndarray|tuple[np.ndarray, np.ndarray]:
         """
         Returns the 'score' and ground truth of the dataset for a given feature as numpy arrays.
         Assumes score is saved in a column in the dataframe with the same name as the feature
@@ -113,17 +115,37 @@ class Dataset(object):
 
         If include_gt is set to True, ground truth is also returned as numpy array. Ground truth is the
         'same' column of the dataframe.
+
+        If train is set to True, only include scores from the train part of the current fold. When set to false,
+        only include data of the current fold. Ignored if fold is not set
+
+        Parameters:
+            include_gr: bool - Whether to also return the ground truth
+            train: bool - Whether to use train or test data, ignored if fold is not set
+        
+        Returns:
+            scores: np.ndarray - The scores of the current approach
+            ground_truth: np.ndarray - Ground truth, either true or false.
+                                       Only included if include_gt is set to True
         """
         # Get scores using set feature
         scores = self.df[self.feature].to_numpy(copy=True)
-        
-        # Only return scores
-        if not include_gt:
-            return scores
-            
+
         # Also return ground truth
         ground_truth = self.df['same'].to_numpy(copy=True)#, dtype=int) TODO: current is bool, should be int?
-        return scores, ground_truth
+
+        # Only take data of the current fold
+        if self.fold is not None:
+            select = (self.df['fold'] != self.fold) if train else (self.df['fold'] == self.fold)
+            scores = scores[select]
+            ground_truth = ground_truth[select]
+        
+        # Only return scores
+        if include_gt:
+            return scores, ground_truth
+        else:
+            return scores
+            
 
 
     def get_embeddings(self, train=False) -> np.ndarray:
