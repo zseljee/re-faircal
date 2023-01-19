@@ -35,7 +35,7 @@ def parse() -> argparse.Namespace:
         type=str,
         nargs='+',
         choices=['baseline', 'faircal', 'fsn', 'agenda', 'ftc', 'oracle'],
-        default=['faircal', ],#'faircal', 'fsn', 'agenda', 'ftc', 'oracle']
+        default=['baseline', ],#'faircal', 'fsn', 'agenda', 'ftc', 'oracle']
     )
 
     parser.add_argument(

@@ -9,10 +9,10 @@ from args import args
 from constants import *
 from dataset import Dataset
 
-from faircal import faircal
+from approaches import faircal, baseline
 
 APPROACHES = {
-    'baseline': NotImplementedError(),
+    'baseline': baseline,
     'faircal': faircal
 }
 
@@ -84,15 +84,23 @@ def gather_results(dataset: Dataset,
 
     data = {}
 
-    for fold in dataset.folds:
-        # Set to train fold
-        dataset.select(fold=[f for f in dataset.folds if f != fold])
+    for k in dataset.folds:
+        print(f"\nFold {k}", '~'*60)
+        dataset.set_fold(k)
 
-        data[f'fold{fold}'] = APPROACHES[conf.approach](dataset=dataset, conf=conf)
+        data[f'fold{k}'] = APPROACHES[conf.approach](dataset=dataset, conf=conf)
+
+
+        for subgroup in dataset.iterate_subgroups():
+            dataset.select_subgroup(**subgroup)
+            print(f"Using subgroup {subgroup}, containing {len(dataset)} pairs")
+
+            embeddings = dataset.get_embeddings(train=True)
+            print(f"Current subgroup has {embeddings.shape[0]} unique embeddings")
+        
+        break
     
     return data
-
-
 
 
 def main():
@@ -115,8 +123,10 @@ def main():
         
         # np.save(saveto, {})
         data = gather_results(dataset=dataset, conf=conf)
+        print("Experiment finished, results:")
         print(data)
         # np.save(saveto, data)
+    print("Done!")
         
 
 if __name__ == '__main__':
