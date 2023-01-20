@@ -12,6 +12,7 @@ def baseline(dataset: Dataset, conf: Namespace):
 			'fpr': dict()
 		   }
 
+	print("Calibrating global scores...")
 	scores, ground_truth = dataset.get_scores(train=True, include_gt=True)
 
 	calibrator = BetaCalibration(scores=scores,
@@ -35,6 +36,7 @@ def baseline(dataset: Dataset, conf: Namespace):
 	data['fpr']['global'] = fpr
 
 	
+	print("Calibrating subgroup scores...")
 	for subgroup in dataset.iterate_subgroups(use_attributes='ethnicity'):
 		dataset.select_subgroup(**subgroup)
 

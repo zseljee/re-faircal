@@ -11,8 +11,6 @@ from dataset import Dataset
 
 def violinplot(dataset, conf):
 
-    fig, axs = plt.subplots(1,3, figsize=(40,20))
-
     dataset.set_fold(5)
     
     approaches = {
@@ -20,6 +18,9 @@ def violinplot(dataset, conf):
         'Baseline + Calibrated': baseline,
         'FairCal': faircal,
     }
+
+    fig, axs = plt.subplots(1,len(approaches), figsize=(20,10))
+
     for approach, ax in zip(approaches, axs):
         data = approaches[approach](dataset, conf)
 
