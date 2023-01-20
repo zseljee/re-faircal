@@ -85,7 +85,7 @@ def gather_results(dataset: Dataset,
 
     data = {}
 
-    for k in dataset.folds:
+    for k in np.copy(dataset.folds):
         print(f"\nFold {k}", '~'*60)
         dataset.set_fold(k)
         dataset.select(None)
@@ -109,15 +109,15 @@ def main():
         # Check if experiment is already run
         saveto = os.path.join( exp_folder, 'results.npy' )
         if not os.path.isfile(saveto):
-            print("Saving results to", saveto)
         
-            np.save(saveto, {})
+            # np.save(saveto, {})
             data = gather_results(dataset=dataset, conf=conf)
-            print("Experiment finished")
-            # print(data)
             np.save(saveto, data)
 
-        violinplot(dataset, conf)
+        dataset.select(None)
+        print("\nExperiment finished, find results at", saveto)
+        print(("="*80))
+
     print("Done!")
         
 

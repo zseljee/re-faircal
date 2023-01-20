@@ -188,7 +188,7 @@ class Dataset(object):
         
         # Convert paths to indices of embeddings
         idxs = [self.path2embidx[path] for path in paths]
-        idx2path = [self.embidx2path[idx] for idx in idxs]
+        idx2path = np.array([self.embidx2path[idx] for idx in idxs])
 
         embeddings = np.copy(self._embeddings[idxs])
 
@@ -276,7 +276,7 @@ class Dataset(object):
 
         Parameters:
             use_previous_selection: bool - Whether to reset entire selection, or continue on previous
-            kwarg: Any|list[Any]|set[Any] - A value, a list or a set of values
+            kwarg: Any|list[Any]|set[Any]|np.ndarray - A value, a list, a set or np.ndarray of values
         """
         df = (self.df if use_previous_selection else self._df).copy()
 
@@ -290,8 +290,12 @@ class Dataset(object):
 
         # Iterate constraints
         for col, vals in constraints.items():
+
+            # Convert np.ndarray to set of values
+            if isinstance(vals, np.ndarray):
+                vals = set(np.flatten(vals))
             # Convert single value to set of values
-            if not isinstance(vals, (list, set)):
+            elif not isinstance(vals, (list, set, np.ndarray)):
                 vals = {vals,}
 
             # logical AND mask with mask for current constraint
@@ -315,20 +319,30 @@ class Dataset(object):
             kmeans: KMeans, kmeans classifier that can be used to 
                 predict clusters for new points or get the labels of training points
         """
-        # check if kmeans file exists
-        if isinstance(self.kmeans, KMeans):
-            return self.kmeans
+        # Set up filename
+        fname = os.path.join(EXPERIMENT_FOLDER, 'kmeans', f'{self.name}_{self.feature}_nclusters{n_clusters}_fold{self.fold}.pkl')
+        
+        # If already trained using these parameters
+        if os.path.isfile(fname):
 
-        # get embeddings
-        embeddings = self.get_embeddings(train=True)
+            # Read pickle file
+            with open(fname, 'rb') as f:
+                kmeans = pickle.load(f)
 
-        # train
-        kmeans = KMeans(n_clusters=n_clusters, n_init=10).fit(embeddings)
-        self.kmeans = kmeans
+        else:
+
+            print(f"Fitting KMeans on dataset {self.name} using feature {self.feature}, #clusters {n_clusters} and fold {self.fold}")
+            print(f"Saving to {fname}")
+            
+            # get embeddings
+            embeddings = self.get_embeddings(train=True)
+
+            # train
+            kmeans = KMeans(n_clusters=n_clusters, n_init=10).fit(embeddings)
         
         # store model
         if save:
-            with open(DATA_FOLDER + 'kmeans.pkl', 'wb') as f:
+            with open(fname, 'wb') as f:
                 pickle.dump(kmeans, f)
                 
         return kmeans

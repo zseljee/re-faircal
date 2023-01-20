@@ -12,12 +12,19 @@ def parse() -> argparse.Namespace:
     # )
 
     parser.add_argument(
+        '--visualize',
+        help='Visualize results after running',
+        action='store_true',
+        default=False
+    )
+
+    parser.add_argument(
         '--datasets',
         help='name(s) of dataset',
         type=str,
         nargs="+",
         choices=['rfw', 'bfw'],
-        default=['bfw',]
+        default=['rfw',]
     )
 
     parser.add_argument(
@@ -26,7 +33,7 @@ def parse() -> argparse.Namespace:
         type=str,
         nargs="+",
         choices=['facenet', 'facenet-webface', 'arcface'],
-        default=['facenet', ],#'facenet-webface', 'arcface']
+        default=['facenet-webface', ],#'facenet-webface', 'arcface']
     )
 
     parser.add_argument(
@@ -35,7 +42,7 @@ def parse() -> argparse.Namespace:
         type=str,
         nargs='+',
         choices=['baseline', 'faircal', 'fsn', 'agenda', 'ftc', 'oracle'],
-        default=['baseline', ],#'faircal', 'fsn', 'agenda', 'ftc', 'oracle']
+        default=['baseline', 'faircal', ],#'faircal', 'fsn', 'agenda', 'ftc', 'oracle']
     )
 
     parser.add_argument(
@@ -60,7 +67,7 @@ def parse() -> argparse.Namespace:
         help='FPR thresholds',
         type=float,
         nargs='+',
-        default=[1e-3,]
+        default=[.05,]
     )
     
     args = parser.parse_args()
