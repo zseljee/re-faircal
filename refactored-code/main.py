@@ -88,6 +88,7 @@ def gather_results(dataset: Dataset,
     for k in dataset.folds:
         print(f"\nFold {k}", '~'*60)
         dataset.set_fold(k)
+        dataset.select(None)
 
         data[f'fold{k}'] = APPROACHES[conf.approach](dataset=dataset, conf=conf)
     
