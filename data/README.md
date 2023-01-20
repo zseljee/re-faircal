@@ -48,6 +48,8 @@ person_ID (folder) <tab> image_1_number (int) <tab> image_2_number (int)
 
 What this means is that it first contains 300 pairs of positive examples, identical `person_ID` for both image_numbers, and then 300 negative examples, which have a different `person_ID`.  This list of 600 is then repeated with different data for the folds, but just appended on the previous data.
 
+Finally, it should be noted that there are 13 pairs of identical IDs that are shared between different subgroups.  The person ID does not uniquely identify a person without their race.
+
 ## BFW data structure
 
 ### CSV file
