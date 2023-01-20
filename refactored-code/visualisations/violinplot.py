@@ -5,19 +5,20 @@ import sklearn.metrics
 import seaborn as sns
 
 from argparse import Namespace
-from approaches import uncalibrated, baseline
+from approaches import uncalibrated, baseline, faircal
 from approaches.utils import get_threshold
 from dataset import Dataset
 
 def violinplot(dataset, conf):
 
-    fig, axs = plt.subplots(1,2)
+    fig, axs = plt.subplots(1,3, figsize=(40,20))
 
     dataset.set_fold(5)
     
     approaches = {
         'Baseline': uncalibrated,
-        'Baseline + Calibrated': baseline
+        'Baseline + Calibrated': baseline,
+        'FairCal': faircal,
     }
     for approach, ax in zip(approaches, axs):
         data = approaches[approach](dataset, conf)

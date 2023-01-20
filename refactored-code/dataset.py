@@ -147,8 +147,7 @@ class Dataset(object):
             return scores
             
 
-
-    def get_embeddings(self, train=False) -> np.ndarray:
+    def get_embeddings(self, train=False, return_mapper: bool=False) -> np.ndarray|tuple[np.ndarray, np.ndarray]:
         """
         Get a numpy array containing the embeddings of the dataset, where each embedding is saved as a row
         If a fold is set (ie `Dataset.fold is not None`), use the `train` parameter to choose between the training
@@ -180,10 +179,15 @@ class Dataset(object):
         
         # Convert paths to indices of embeddings
         idxs = [self.path2embidx[path] for path in paths]
+        idx2path = [self.embidx2path[idx] for idx in idxs]
+
+        embeddings = np.copy(self._embeddings[idxs])
 
         # Copy embeddings at idxs
         # TODO might be redundent to copy?
-        return np.copy(self._embeddings[idxs])
+        if return_mapper:
+            return embeddings, idx2path
+        return embeddings
 
 
     def iterate_subgroups(self, use_attributes: str|Iterable[str]|None = None) -> Iterable[ dict[str, Any] ]:
