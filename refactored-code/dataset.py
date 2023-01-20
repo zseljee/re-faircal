@@ -271,16 +271,28 @@ class Dataset(object):
     
 
     def train_cluster(self, n_clusters:int=100):
+        """
+        use kmeans clustering to create clusters of the embeddings
+        this function will train a kmeans classifier and return it
+
+        input:
+            n_clusters: int (default 100 as used in the paper) 
+                the number of clusters in the data 
+
+        output:
+            kmeans: (KMeans) kmeans classifier that can be used to 
+                predict clusters for new points or get the labels of training points
+        """
         # check if kmeans file exists
         if isinstance(self.kmeans, KMeans):
             return self.kmeans
 
-        # check if embeddings are present
+        # get embeddings
         embeddings = self.get_embeddings(train=True)
 
         # train
-        kmeans = KMeans(n_clusters=n_clusters, n_init=1).fit(embeddings)
-
+        kmeans = KMeans(n_clusters=n_clusters, n_init=10).fit(embeddings)
+        self.kmeans = kmeans
         return kmeans
 
 
