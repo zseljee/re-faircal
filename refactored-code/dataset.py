@@ -1,5 +1,5 @@
 # TODO: Combine `iterate_subgroups` and `select_subgroup` into `iterate_select_subgroup`?
-
+import os
 from typing import Any, Iterable
 import itertools
 
@@ -30,8 +30,13 @@ class Dataset(object):
         self.folds: np.ndarray = self._df['fold'].unique()
         self.fold: int|None = None
         
-        # TODO check for kmeans file
         self.kmeans: KMeans|None = None
+        # load kmeans if exists
+        files = os.listdir(DATA_FOLDER)
+        if 'kmeans.pkl' in files:
+            with open(DATA_FOLDER + 'kmeans.pkl', 'rb') as f:
+                self.kmeans = pickle.load(f)
+                assert isinstance(self.kmeans, KMeans)
 
         if feature not in self._df.columns:
             s = f"Could not set up dataset {self.name} with feature {self.feature}"
@@ -270,17 +275,18 @@ class Dataset(object):
         self.df = df[mask]
     
 
-    def train_cluster(self, n_clusters:int=100):
+    def train_cluster(self, n_clusters:int=100, save=False):
         """
         use kmeans clustering to create clusters of the embeddings
         this function will train a kmeans classifier and return it
 
         input:
-            n_clusters: int (default 100 as used in the paper) 
+            n_clusters: int, (default 100 as used in the paper) 
                 the number of clusters in the data 
+            save: bool, if the model is saved
 
         output:
-            kmeans: (KMeans) kmeans classifier that can be used to 
+            kmeans: KMeans, kmeans classifier that can be used to 
                 predict clusters for new points or get the labels of training points
         """
         # check if kmeans file exists
@@ -293,6 +299,12 @@ class Dataset(object):
         # train
         kmeans = KMeans(n_clusters=n_clusters, n_init=10).fit(embeddings)
         self.kmeans = kmeans
+        
+        # store model
+        if save:
+            with open(DATA_FOLDER + 'kmeans.pkl', 'wb') as f:
+                pickle.dump(kmeans, f)
+                
         return kmeans
 
 
