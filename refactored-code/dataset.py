@@ -6,6 +6,7 @@ import itertools
 import pickle
 import numpy as np
 import pandas as pd
+from sklearn.cluster import KMeans
 
 from constants import *
 
@@ -28,7 +29,9 @@ class Dataset(object):
         self.df: pd.DataFrame = self._df.copy()
         self.folds: np.ndarray = self._df['fold'].unique()
         self.fold: int|None = None
-        self.kmeans
+        
+        # TODO check for kmeans file
+        self.kmeans: KMeans|None = None
 
         if feature not in self._df.columns:
             s = f"Could not set up dataset {self.name} with feature {self.feature}"
@@ -268,19 +271,17 @@ class Dataset(object):
     
 
     def train_cluster(self, n_clusters:int=100):
-        pass
         # check if kmeans file exists
-        if self.kmeans == isinstance(kmeans):
+        if isinstance(self.kmeans, KMeans):
             return self.kmeans
 
-        # check if embeddings are present of subset 
-        # Otherwise get them (set van embeddings)
+        # check if embeddings are present
+        embeddings = self.get_embeddings(train=True)
 
         # train
+        kmeans = KMeans(n_clusters=n_clusters, n_init=1).fit(embeddings)
 
-        # cluster
-
-        # return clusters (kmeans instance)
+        return kmeans
 
 
     def __len__(self):
