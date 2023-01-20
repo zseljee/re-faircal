@@ -1,11 +1,12 @@
 # TODO: Combine `iterate_subgroups` and `select_subgroup` into `iterate_select_subgroup`?
-
+import os
 from typing import Any, Iterable
 import itertools
 
 import pickle
 import numpy as np
 import pandas as pd
+from sklearn.cluster import KMeans
 
 from constants import *
 
@@ -28,6 +29,14 @@ class Dataset(object):
         self.df: pd.DataFrame = self._df.copy()
         self.folds: np.ndarray = self._df['fold'].unique()
         self.fold: int|None = None
+        
+        self.kmeans: KMeans|None = None
+        # load kmeans if exists
+        files = os.listdir(DATA_FOLDER)
+        if 'kmeans.pkl' in files:
+            with open(DATA_FOLDER + 'kmeans.pkl', 'rb') as f:
+                self.kmeans = pickle.load(f)
+                assert isinstance(self.kmeans, KMeans)
 
         if feature not in self._df.columns:
             s = f"Could not set up dataset {self.name} with feature {self.feature}"
@@ -291,6 +300,39 @@ class Dataset(object):
         # Set current df as subset of full dataset
         self.df = df[mask]
     
+
+    def train_cluster(self, n_clusters:int=100, save=False):
+        """
+        use kmeans clustering to create clusters of the embeddings
+        this function will train a kmeans classifier and return it
+
+        input:
+            n_clusters: int, (default 100 as used in the paper) 
+                the number of clusters in the data 
+            save: bool, if the model is saved
+
+        output:
+            kmeans: KMeans, kmeans classifier that can be used to 
+                predict clusters for new points or get the labels of training points
+        """
+        # check if kmeans file exists
+        if isinstance(self.kmeans, KMeans):
+            return self.kmeans
+
+        # get embeddings
+        embeddings = self.get_embeddings(train=True)
+
+        # train
+        kmeans = KMeans(n_clusters=n_clusters, n_init=10).fit(embeddings)
+        self.kmeans = kmeans
+        
+        # store model
+        if save:
+            with open(DATA_FOLDER + 'kmeans.pkl', 'wb') as f:
+                pickle.dump(kmeans, f)
+                
+        return kmeans
+
 
     def __len__(self):
         return len(self.df)
