@@ -28,6 +28,7 @@ class Dataset(object):
         self.df: pd.DataFrame = self._df.copy()
         self.folds: np.ndarray = self._df['fold'].unique()
         self.fold: int|None = None
+        self.kmeans
 
         if feature not in self._df.columns:
             s = f"Could not set up dataset {self.name} with feature {self.feature}"
@@ -266,14 +267,16 @@ class Dataset(object):
         self.df = df[mask]
     
 
-    def cluster(self, train=False):
+    def train_cluster(self, n_clusters:int=100):
         pass
         # check if kmeans file exists
+        if self.kmeans == isinstance(kmeans):
+            return self.kmeans
 
-        # check if embeddings are present
-        # Otherwise get them
+        # check if embeddings are present of subset 
+        # Otherwise get them (set van embeddings)
 
-        # train or predict
+        # train
 
         # cluster
 
