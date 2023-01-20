@@ -266,5 +266,19 @@ class Dataset(object):
         self.df = df[mask]
     
 
+    def cluster(self, train=False):
+        pass
+        # check if kmeans file exists
+
+        # check if embeddings are present
+        # Otherwise get them
+
+        # train or predict
+
+        # cluster
+
+        # return clusters (kmeans instance)
+
+
     def __len__(self):
         return len(self.df)
