@@ -9,35 +9,25 @@ from approaches import uncalibrated, baseline, faircal
 from approaches.utils import get_threshold
 from dataset import Dataset
 
-def violinplot(dataset, conf):
+def violinplot(**approaches):
 
-    dataset.set_fold(5)
-    
-    approaches = {
-        'Baseline': uncalibrated,
-        'Baseline + Calibrated': baseline,
-        'FairCal': faircal,
-    }
-
-    fig, axs = plt.subplots(1,len(approaches), figsize=(20,10))
+    fig, axs = plt.subplots(1,len(approaches), squeeze=False, figsize=(20,10))
+    axs = axs.flatten()
 
     for approach, ax in zip(approaches, axs):
-        data = approaches[approach](dataset, conf)
+        data = approaches[approach]
 
-        # Reset dataset selection
-        dataset.select(None)
+        data = data['fold5']
 
         subgroups = [ethnicity for ethnicity in data['threshold'] if ethnicity != 'global']
 
-        df = dataset.df
-        df_test = df[ df['fold'] == dataset.fold ].copy()
-        
-        df_test['temp'] = data['confidences']['test']
+        df = data['df'].copy()
+        df_test = df[ df['test']==True ]
 
         sns.violinplot(
             x ='ethnicity',
             hue="pair",
-            y='temp',
+            y='calibrated_score',
             split=True,
             data=df_test,
             scale="count",
@@ -51,6 +41,7 @@ def violinplot(dataset, conf):
         # ax.set_ylabel("Cosine Similarity score")
 
         ax.axhline(y=data['threshold']['global'], ls='-', c='black', lw=2, alpha=1.)
+
         for j,ethnicity in enumerate(subgroups):
             ax.hlines(y=data['threshold'][ethnicity],
                     xmin=j-.5,
