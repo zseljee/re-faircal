@@ -1,4 +1,5 @@
 import os
+import pickle
 from typing import Any, Iterator
 from argparse import Namespace
 import itertools
@@ -96,6 +97,8 @@ def gather_results(dataset: Dataset,
 
 
 def main():
+    results_for_plotting = dict()
+
     # Try each configuration, as derived from args
     for conf in iterate_configurations():
         print("\n"+("="*80))
@@ -112,11 +115,23 @@ def main():
         
             # np.save(saveto, {})
             data = gather_results(dataset=dataset, conf=conf)
-            np.save(saveto, data)
+
+            with open(saveto, 'wb') as f:
+                pickle.dump(data, f)
+        
+        else:
+            with open(saveto, 'rb') as f:
+                data = pickle.load(f, fix_imports=True)
+
+        if args.visualize:
+            results_for_plotting[conf.approach] = data
 
         dataset.select(None)
         print("\nExperiment finished, find results at", saveto)
         print(("="*80))
+    
+    if args.visualize:
+        violinplot(**results_for_plotting)
 
     print("Done!")
         
