@@ -8,12 +8,18 @@ from approaches.utils import get_threshold
 from calibrationMethods import BetaCalibration
 
 def faircal(dataset: Dataset, conf: Namespace) -> dict:
-    data = {'confidences': dict(),
+    data = {'df': dict(),
             'threshold': dict(),
             'fpr': dict()
            }
 
     dataset.select(None)
+    
+    df = dataset.df.copy()
+    select_test = df['fold'] == dataset.fold
+    df['test'] = select_test
+    df['score'] = df[dataset.feature]
+    df['calibrated_score'] = 0.
 
     print("Training using KMeans...")
     kmeans: KMeans = dataset.train_cluster(n_clusters=conf.n_cluster, save=True)
@@ -21,20 +27,23 @@ def faircal(dataset: Dataset, conf: Namespace) -> dict:
     print("Predicting using KMeans...")
     # TODO
     embeddings = np.copy(dataset._embeddings)
-    idx2path = np.array(dataset.embidx2path)
-    cluster_assignment = kmeans.predict(embeddings)
+    embidx2path = np.array( dataset.embidx2path )
+    path2embidx = dataset.path2embidx
+
+    cluster_assignments = kmeans.predict(embeddings)
+
+    df['cluster1'] = df['path1'].apply(lambda path: cluster_assignments[ path2embidx[path] ] )
+    df['cluster2'] = df['path2'].apply(lambda path: cluster_assignments[ path2embidx[path] ] )
 
     # Set up calibrator on entire train set
     print("Setting up global calibrator...")
-    scores_train, gt_train = dataset.get_scores(train=True, include_gt=True)
-    calibrator = BetaCalibration(scores_train, gt_train)
+    calibrator = BetaCalibration(df[~select_test]['score'], df[~select_test]['same'])
 
     # Use calibrated scores to set a threshold
-    calibrated_scores = calibrator.predict( scores_train )
-    thr = get_threshold(calibrated_scores, gt_train, conf.fpr_thr)
+    calibrated_scores = calibrator.predict( df[~select_test]['score'] )
+    thr = get_threshold(calibrated_scores, df[~select_test]['same'], conf.fpr_thr)
 
     # Save calibrated scores on test set too
-    scores_test, gt_test = dataset.get_scores(train=False, include_gt=True)
     fpr = 0. # TODO compute FPR for test set
 
     data['threshold'][f'global'] = thr
@@ -46,64 +55,56 @@ def faircal(dataset: Dataset, conf: Namespace) -> dict:
     calibrators = [None]*conf.n_cluster
     cluster_sizes = np.zeros(conf.n_cluster, dtype='int')
 
-    df = dataset.df.copy()
-    
-    scores = df[dataset.feature]
-    ground_truth = df['same']
-    calibrated_scores = np.zeros_like(scores)
-
     for cluster in range(conf.n_cluster):
 
-        # Get the paths where the embedding is assigned to the current cluster
-        paths = set( idx2path[ (cluster_assignment == cluster) ] )
-
-        # Now select the image pairs where both images are assigned to the current cluster
-        select = (df['path1'].isin(paths)) & (df['path2'].isin(paths))
+        # Now select the train image pairs where both images are assigned to the current cluster
+        select = (df['cluster1'] == cluster) & (df['cluster2'] == cluster) & (~select_test)
         
         # Take note of the cluster size (is used below)
         cluster_sizes[cluster] = np.sum(select)
 
         # Set up calibrator on current selection
-        calibrator = BetaCalibration(scores[select], ground_truth[select], score_min=-1, score_max=1)
+        calibrator = BetaCalibration(df['score'][select], df['same'][select], score_min=-1, score_max=1)
         calibrators[cluster] = calibrator
     
     # Normalizing factor, to take a weighted average of calibrated scores
-    norm_fact = np.zeros_like(scores)
+    norm_fact = np.zeros_like(df['score'])
+
+    calibrated_score = np.zeros_like(df['score'])
 
     # Iterate clusters again
     for cluster in range(conf.n_cluster):
 
-        # Select the paths where the embedding is assigned to the current cluster
-        paths = set( idx2path[ (cluster_assignment == cluster) ] )
-
         # Select image pairs where the left image is assigned to the current cluster
-        select = (df['path1'].isin(paths))
+        select = (df['cluster1'] == cluster)
         # Calibrate score using calibrator of current cluster, weighed by the cluster size
-        calibrated_scores[ select ] += calibrators[cluster].predict( scores[select] ) * cluster_sizes[cluster]
+        calibrated_score[ select ] += calibrators[cluster].predict( df['score'][select] ) * cluster_sizes[cluster]
         # Add the cluster size to current selection of pairs, to take a weighted average of calibrated scores
         norm_fact[ select ] += cluster_sizes[cluster]
 
         # Select image pairs where the right image is assigned to the current cluster
-        select = (df['path2'].isin(paths))
+        select = (df['cluster2'] == cluster)
         # Calibrate score using calibrator of current cluster, weighed by the cluster size
-        calibrated_scores[ select ] += calibrators[cluster].predict( scores[select] ) * cluster_sizes[cluster]
+        calibrated_score[ select ] += calibrators[cluster].predict( df['score'][select] ) * cluster_sizes[cluster]
         # Add the cluster size to current selection of pairs, to take a weighted average of calibrated scores
         norm_fact[ select ] += cluster_sizes[cluster]
 
     # Normalize calibrated scores by cumulative cluster size
-    calibrated_scores /= norm_fact
+    df['calibrated_score'] = calibrated_score/norm_fact
 
-    # Save confidences
-    data['confidences'] = {
-        'cal': calibrated_scores[ df['fold'] != dataset.fold ],
-        'test': calibrated_scores[ df['fold'] == dataset.fold ],
-    }
+    # Save results
+    keepCols = ['test', 'score', 'calibrated_score', 'ethnicity', 'pair', 'same']
+    data['df'] = df[keepCols]
 
     print("Computing results for subgroups...")
     for subgroup in dataset.iterate_subgroups(use_attributes='ethnicity'):
-        select = (df['ethnicity'] == subgroup['ethnicity']) #& (df['e2'] == subgroup['ethnicity'])
 
-        thr = get_threshold(calibrated_scores[select], ground_truth[select], conf.fpr_thr)
+        # TODO this can be cleaner?
+        select = np.copy(select_test)
+        for col in dataset.consts['sensitive_attributes']['ethnicity']['cols']:
+            select &= (df[col] == subgroup['ethnicity'])
+
+        thr = get_threshold(df['calibrated_score'][select], df['same'][select], conf.fpr_thr)
         fpr = 0. # TODO
 
         data['threshold'][subgroup['ethnicity']] = thr
