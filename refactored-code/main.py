@@ -10,12 +10,14 @@ from args import args
 from constants import *
 from dataset import Dataset
 
-from approaches import faircal, baseline
+from approaches import uncalibrated, baseline, faircal, oracle
 from visualisations import violinplot
 
 APPROACHES = {
     'baseline': baseline,
-    'faircal': faircal
+    'faircal': faircal,
+    'oracle': oracle,
+    'uncalibrated': uncalibrated
 }
 
 def iterate_configurations() -> Namespace:

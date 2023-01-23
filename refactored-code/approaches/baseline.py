@@ -7,48 +7,54 @@ from calibrationMethods import BetaCalibration
 from approaches.utils import get_threshold
 
 def baseline(dataset: Dataset, conf: Namespace):
-	data = {'confidences': dict(),
-	        'threshold': dict(),
-			'fpr': dict()
-		   }
+    data = {'confidences': dict(),
+            'threshold': dict(),
+            'fpr': dict()
+           }
 
-	print("Calibrating global scores...")
-	scores, ground_truth = dataset.get_scores(train=True, include_gt=True)
+    print("Calibrating global scores...")
 
-	calibrator = BetaCalibration(scores=scores,
-	                             ground_truth=ground_truth,
-					       	     score_min=-1,
-						         score_max=1,
-								)
-	calibrated_scores = calibrator.predict(scores)
-	data['confidences']['cal'] = calibrated_scores
+    dataset.select(None)
+    df = dataset.df.copy()
+    select_test = df['fold'] == dataset.fold
+    df['test'] = select_test
+    df['score'] = df[dataset.feature]
+    df['calibrated_score'] = 0.
 
-	thr = get_threshold(calibrated_scores, ground_truth, conf.fpr_thr)
-	data['threshold']['global'] = thr
+    score_train = df['score'][~select_test]
+    gt_train = df['same'][~select_test]
 
+    calibrator = BetaCalibration(scores=score_train,
+                                 ground_truth=gt_train,
+                                 score_min=-1,
+                                 score_max=1,
+                                )
+    df['calibrated_score'] = calibrator.predict(df['score'])
+    calscore_train = df['calibrated_score'][~select_test]
 
-	scores, ground_truth = dataset.get_scores(train=False, include_gt=True)
+    thr = get_threshold(calscore_train, gt_train, conf.fpr_thr)
+    fpr = 0. # TODO compute FPR for test set
 
-	calibrated_scores = calibrator.predict(scores)
-	data['confidences']['test'] = calibrated_scores
+    data['threshold']['global'] = thr
+    data['fpr']['global'] = fpr
 
-	fpr = 0. # TODO compute FPR for test set
-	data['fpr']['global'] = fpr
+    
+    print("Calibrating subgroup scores...")
+    for subgroup in dataset.iterate_subgroups(use_attributes='ethnicity'):
 
-	
-	print("Calibrating subgroup scores...")
-	for subgroup in dataset.iterate_subgroups(use_attributes='ethnicity'):
-		dataset.select_subgroup(**subgroup)
+        # TODO this can be cleaner?
+        select = np.copy(~select_test)
+        for col in dataset.consts['sensitive_attributes']['ethnicity']['cols']:
+            select &= (df[col] == subgroup['ethnicity'])
+            
+        thr = get_threshold(df['calibrated_score'][select], df['same'][select], conf.fpr_thr)
+        fpr = 0. # TODO
 
-		scores, ground_truth = dataset.get_scores(train=True, include_gt=True)
-		calibrated_scores = calibrator.predict(scores)
-		thr = get_threshold(calibrated_scores, ground_truth, conf.fpr_thr)
+        data['threshold'][subgroup['ethnicity']] = thr
+        data['fpr'][subgroup['ethnicity']] = fpr
+    
+    # Save results
+    keepCols = ['test', 'score', 'calibrated_score', 'ethnicity', 'pair', 'same']
+    data['df'] = df[keepCols]
 
-		scores, ground_truth = dataset.get_scores(train=False, include_gt=True)
-		calibrated_scores = calibrator.predict(scores)
-		fpr = 0. # TODO compute FPR for test set of subgroup
-
-		data['threshold'][subgroup['ethnicity']] = thr
-		data['fpr'][subgroup['ethnicity']] = fpr
-
-	return data
+    return data

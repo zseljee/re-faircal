@@ -1,37 +1,48 @@
+import numpy as np
+
 from dataset import Dataset
 from argparse import Namespace
 
 from approaches.utils import get_threshold
 
 def uncalibrated(dataset: Dataset, conf: Namespace):
-	data = {'confidences': dict(),
-	        'threshold': dict(),
-			'fpr': dict()
-		   }
+    data = {'confidences': dict(),
+            'threshold': dict(),
+            'fpr': dict()
+           }
 
-	scores, ground_truth = dataset.get_scores(train=True, include_gt=True)
+    print("Calibrating global scores...")
 
-	thr = get_threshold(scores, ground_truth, conf.fpr_thr)
+    dataset.select(None)
+    df = dataset.df.copy()
+    select_test = df['fold'] == dataset.fold
+    df['test'] = select_test
+    df['score'] = df[dataset.feature]
+    df['calibrated_score'] = df['score'].copy()
 
-	data['confidences']['cal'] = scores
-	data['threshold']['global'] = thr
+    thr = get_threshold(df['score'][~select_test], df['same'][~select_test], conf.fpr_thr)
+    fpr = 0. # TODO compute FPR for test set
 
-	scores, ground_truth = dataset.get_scores(train=False, include_gt=True)
-	fpr = 0. # TODO compute FPR for test set
+    data['threshold']['global'] = thr
+    data['fpr']['global'] = fpr
 
-	data['confidences']['test'] = scores
-	data['fpr']['global'] = fpr
-	
-	for subgroup in dataset.iterate_subgroups(use_attributes='ethnicity'):
-		dataset.select_subgroup(**subgroup)
+    
+    print("Calibrating subgroup scores...")
+    for subgroup in dataset.iterate_subgroups(use_attributes='ethnicity'):
 
-		scores, ground_truth = dataset.get_scores(train=True, include_gt=True)
-		thr = get_threshold(scores, ground_truth, conf.fpr_thr)
+        # TODO this can be cleaner?
+        select = np.copy(~select_test)
+        for col in dataset.consts['sensitive_attributes']['ethnicity']['cols']:
+            select &= (df[col] == subgroup['ethnicity'])
+            
+        thr = get_threshold(df['calibrated_score'][select], df['same'][select], conf.fpr_thr)
+        fpr = 0. # TODO
 
-		scores, ground_truth = dataset.get_scores(train=False, include_gt=True)
-		fpr = 0. # TODO compute FPR for test set of subgroup
+        data['threshold'][subgroup['ethnicity']] = thr
+        data['fpr'][subgroup['ethnicity']] = fpr
+    
+    # Save results
+    keepCols = ['test', 'score', 'calibrated_score', 'ethnicity', 'pair', 'same']
+    data['df'] = df[keepCols]
 
-		data['threshold'][subgroup['ethnicity']] = thr
-		data['fpr'][subgroup['ethnicity']] = fpr
-
-	return data
+    return data
