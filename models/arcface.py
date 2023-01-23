@@ -21,7 +21,7 @@ class ArcFace():
         # Sanity check that the model works
         onnx.checker.check_model(onnx_model)
         self.onnx_model = onnx_model
-        self.ort_session = InferenceSession(model_path)
+        self.ort_session = InferenceSession(model_path, providers=['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider'])
 
     def __call__(self, *args, **kwargs):
         return self.forward(*args, **kwargs)
