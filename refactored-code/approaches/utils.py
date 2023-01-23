@@ -31,8 +31,6 @@ def get_metrics(confidences: np.ndarray, dataset: Dataset, conf: Namespace) -> d
 
     ground_truth = df['same'].astype(int).to_numpy()
 
-    # conf.nbins = 10 if conf.dataset == 'rwf' else 25
-
     for subgroup in subgroups:
 
         select = (df['test'] == True)
