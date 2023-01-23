@@ -11,6 +11,7 @@ from args import args
 from constants import *
 from dataset import Dataset
 
+from utils import iterate_configurations, get_experiment_folder
 from approaches import uncalibrated, baseline, faircal, oracle
 from approaches.utils import get_metrics
 from visualisations import violinplot, fpr2globalfpr
@@ -21,58 +22,6 @@ APPROACHES = {
     'oracle': oracle,
     'uncalibrated': uncalibrated
 }
-
-def iterate_configurations() -> Namespace:
-    """
-    Iterate options in args to yield configurations.
-    Prevents many 'for' loops in main
-
-    Yields Namespace with keys as defined below
-    """
-
-    # Keys used in returned Namespace
-    keys = ['dataset',
-            'n_cluster',
-            'feature',
-            'approach',
-            'calibration_method',
-           ]
-
-    # Use those keys to get a list of values for each option
-    # ! IMPORTANT ! this assumes that these attributes are lists/iterables
-    values = [getattr(args, key) for key in keys]
-
-    # To stress the above point, check if `values` is a list of lists
-    assert all(isinstance(val, list) for val in values), "Configuration contains non-list key"
-
-    # Now combine each item in each list of options in values with each other
-    # Ie [[1,2], ['a', 'b']] gives (1,a), (1,b), (2,a), (2,b)
-    for conf in itertools.product(*values):
-
-        # Now map the keys back to the values
-        yield Namespace( **dict(zip(keys, conf)) )
-
-
-def get_experiment_folder(conf: Namespace, makedirs: bool=True) -> str:
-    """
-    Given a configuration, return path to a folder to save
-    results for this configuration.
-
-    Parameters:
-        conf: Namespace - Configuration as namespace,
-                          as returned by iterate_configurations
-        makedirs: bool - Whether to create a folder, if not already exists
-    """
-    path = os.path.join(EXPERIMENT_FOLDER,
-                        conf.dataset,
-                        conf.feature,
-                        conf.approach,
-                        conf.calibration_method
-                       )
-    if makedirs:
-        os.makedirs(path, exist_ok=True)
-
-    return path
 
 
 def gather_results(dataset: Dataset,
@@ -100,9 +49,15 @@ def main():
     results_for_plotting = []
 
     # Try each configuration, as derived from args
-    for conf in iterate_configurations():
+    for conf in iterate_configurations(args):
+
         print("\n"+("="*80))
         print("Running on configuration", conf)
+
+        if (conf.dataset == 'rfw' and conf.feature == 'arcface')\
+        or (conf.dataset == 'bfw' and conf.feature == 'facenet'):
+            print("Skipping experiment! ArcFace cannot be combined with RFW and FaceNet(VGGFace2) cannot be combined with BFW.")
+            continue
 
         # Save results of the experiment in this folder
         exp_folder = get_experiment_folder(conf)
@@ -137,8 +92,7 @@ def main():
         print(("="*80))
 
     if args.visualize:
-        pass
-        # violinplot(dataset, results_for_plotting)
+        violinplot(dataset, results_for_plotting)
         # fpr2globalfpr(dataset, results_for_plotting)
 
     print("Done!")
@@ -146,3 +100,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # from visualisations import table_accuracy
+    # table_accuracy()
