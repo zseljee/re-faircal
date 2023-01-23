@@ -1,3 +1,4 @@
+from collections import defaultdict
 import numpy as np
 import pandas as pd
 import os
@@ -11,6 +12,7 @@ from torchvision import transforms
 from facenet_pytorch import InceptionResnetV1, MTCNN
 from bfw import BFWImages
 from rfw import RFWImages
+from arcface import ArcFace
 
 # Set up device
 device = torch.device( 'cuda' if torch.cuda.is_available() else 'cpu')
@@ -19,9 +21,10 @@ print("Using device:", device)
 # Load models to CPU
 print("Loading models...")
 models = {
-    'facenet': InceptionResnetV1(pretrained='vggface2').eval(),
-    'facenet-webface': InceptionResnetV1(pretrained='casia-webface').eval(),
-    # 'arcface': NotImplementedError(),
+    # 'facenet': InceptionResnetV1(pretrained='vggface2').eval(),
+    # 'facenet-webface': InceptionResnetV1(pretrained='casia-webface').eval(),
+    # TODO: Replace with link where the model is saved.
+    'arcface': ArcFace("../arcface_resnet100/resnet100.onnx"),
 }
 print("Available models:", ', '.join(models))
 
@@ -50,7 +53,7 @@ for modelName in models:
         dataset = datasets[datasetName]
 
         # Save embeddings here
-        embeddings: dict[str, np.ndarray] = dict()
+        embeddings: dict[str, np.ndarray] = defaultdict(dict)
 
         # Iterate images
         for img, meta in tqdm.tqdm(dataset, ncols=100):
