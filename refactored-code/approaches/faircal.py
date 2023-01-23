@@ -34,7 +34,7 @@ def faircal(dataset: Dataset, conf: Namespace) -> np.ndarray:
 
     # Get embeddings from dataset, together with mappers
     print("Predicting using KMeans...")
-    embeddings, idx2path = dataset.get_embeddings(return_mapper=True)
+    embeddings, idx2path = dataset.get_embeddings(train=None, return_mapper=True)
     path2embidx = dict((path,i) for i,path in enumerate(idx2path))
 
     # Predict on all clusters

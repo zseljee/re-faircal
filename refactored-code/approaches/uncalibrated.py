@@ -17,4 +17,4 @@ def uncalibrated(dataset: Dataset, conf: Namespace) -> np.ndarray:
     """
     print("Running uncalibrated dummy approach...")
 
-    return dataset.df['score'].to_numpy()
+    return dataset.df[dataset.feature].to_numpy()

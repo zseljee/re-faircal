@@ -24,7 +24,7 @@ def parse() -> argparse.Namespace:
         type=str,
         nargs="+",
         choices=['rfw', 'bfw'],
-        default=['rfw',]
+        default=['rfw', 'bfw']
     )
 
     parser.add_argument(
@@ -33,7 +33,7 @@ def parse() -> argparse.Namespace:
         type=str,
         nargs="+",
         choices=['facenet', 'facenet-webface', 'arcface'],
-        default=['facenet-webface', ],#'facenet-webface', 'arcface']
+        default=['facenet', 'facenet-webface', 'arcface']
     )
 
     parser.add_argument(

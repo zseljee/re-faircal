@@ -27,6 +27,7 @@ def conf2idx(conf: Namespace):
 def table_accuracy():
     teamName = 'FACT-AI' # What do we call ourselves?
     columnNames = [
+        # TODO
         ('RFW', 'FaceNet (VGGFace2)', 'TPR @ 0.1\% FPR', 'Salvador'),
         ('RFW', 'FaceNet (VGGFace2)', 'TPR @ 0.1\% FPR', teamName),
         ('RFW', 'FaceNet (VGGFace2)', 'TPR @ 0.1\% FPR', 'diff.'),
@@ -64,9 +65,9 @@ def table_accuracy():
 
     # Data from Table 2 in Salvador (2022)
     data_salvador = np.array([
-        [18.42, 34.88, 11.18, 26.04, 33.61, 58.87, 86.27, 90.11], # Baseline
-        [23.55, 41.88, 20.64, 33.13, 46.74, 69.21, 86.28, 90.14], # FairCal
-        [21.40, 41.83, 16.71, 31.60, 45.13, 67.56, 86.41, 90.40], # Oracle
+        [18.42, 34.88, 11.18, 26.04, 33.61, 58.87, 86.27, 90.11], # Baseline TODO
+        [23.55, 41.88, 20.64, 33.13, 46.74, 69.21, 86.28, 90.14], # FairCal TODO
+        [21.40, 41.83, 16.71, 31.60, 45.13, 67.56, 86.41, 90.40], # Oracle TODO
     ])
 
     data_factai = np.full((3,8), np.nan)
