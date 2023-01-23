@@ -9,20 +9,16 @@ dependencies:
   # onnxruntime requires python3.9 and nothing higher.
   - python=3.9
   - pip
-  - cpuonly
+  - pytorch
   - pytorch-cuda
   - torchvision
-  - torchaudio
   - onnx  # For ArcFace
   - pip:
     - facenet_pytorch
-    - ipywidgets
-    - jupyterlab
     - matplotlib
-    - notebook
     - onnxruntime-gpu
     - pandas
     - pillow
-    - scipy=1.9.3  # Because there is a problem with building 1.10 on Mac OSX Mojave (Zirk's computer)
+    - scipy==1.9.3  # Because there is a problem with building 1.10.0 on Mac OSX Mojave (Zirk's computer)
     - scikit-image
     - tqdm
