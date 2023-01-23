@@ -3,46 +3,18 @@ import numpy as np
 from dataset import Dataset
 from argparse import Namespace
 
-from approaches.utils import get_threshold
+def uncalibrated(dataset: Dataset, conf: Namespace) -> np.ndarray:
+    """
+    Dummy function to simulate an approach, while not doing anything.
+    Simply returns the 'score' column of the dataset.
 
-def uncalibrated(dataset: Dataset, conf: Namespace):
-    data = {'confidences': dict(),
-            'threshold': dict(),
-            'fpr': dict()
-           }
+    Parameters:
+        dataset: Dataset - A dataset instance
+        conf: Namespace - Configuration of current approach
 
-    print("Calibrating global scores...")
+    Returns:
+        score: np.ndarray - Score of used approach
+    """
+    print("Running uncalibrated dummy approach...")
 
-    dataset.select(None)
-    df = dataset.df.copy()
-    select_test = df['fold'] == dataset.fold
-    df['test'] = select_test
-    df['score'] = df[dataset.feature]
-    df['calibrated_score'] = df['score'].copy()
-
-    thr = get_threshold(df['score'][~select_test], df['same'][~select_test], conf.fpr_thr)
-    fpr = 0. # TODO compute FPR for test set
-
-    data['threshold']['global'] = thr
-    data['fpr']['global'] = fpr
-
-    
-    print("Calibrating subgroup scores...")
-    for subgroup in dataset.iterate_subgroups(use_attributes='ethnicity'):
-
-        # TODO this can be cleaner?
-        select = np.copy(~select_test)
-        for col in dataset.consts['sensitive_attributes']['ethnicity']['cols']:
-            select &= (df[col] == subgroup['ethnicity'])
-            
-        thr = get_threshold(df['calibrated_score'][select], df['same'][select], conf.fpr_thr)
-        fpr = 0. # TODO
-
-        data['threshold'][subgroup['ethnicity']] = thr
-        data['fpr'][subgroup['ethnicity']] = fpr
-    
-    # Save results
-    keepCols = ['test', 'score', 'calibrated_score', 'ethnicity', 'pair', 'same']
-    data['df'] = df[keepCols]
-
-    return data
+    return dataset.df['score'].to_numpy()
