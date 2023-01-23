@@ -87,4 +87,4 @@ for modelName in models:
 
             print("Mapping path->embedding saved to", fname)
             with open(fname, 'wb') as file:
-                pickle.dump(embeddings, file)
+                pickle.dump(embeddings_subset, file)
