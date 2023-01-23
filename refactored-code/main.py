@@ -1,5 +1,6 @@
 import os
 import pickle
+import traceback
 from typing import Any, Iterator
 from argparse import Namespace
 import itertools
@@ -11,7 +12,8 @@ from constants import *
 from dataset import Dataset
 
 from approaches import uncalibrated, baseline, faircal, oracle
-from visualisations import violinplot
+from approaches.utils import get_metrics
+from visualisations import violinplot, fpr2globalfpr
 
 APPROACHES = {
     'baseline': baseline,
@@ -29,35 +31,26 @@ def iterate_configurations() -> Namespace:
     """
 
     # Keys used in returned Namespace
-    # ! Important! The order of 'keys' has to match with the order of 'values'
     keys = ['dataset',
             'n_cluster',
-            'fpr_thr',
             'feature',
             'approach',
             'calibration_method',
            ]
 
-    # List of lists of each value to try
-    # Ie values = [ ['A','B'], [1,2,3] ] will give A1, A2, A3, B1, B2, B3
-    values = [args.datasets,
-              args.n_clusters,
-              args.fpr_thrs,
-              args.features,
-              args.approaches,
-              args.calibration_methods,
-             ]
-    
-    # Make sure we can map each value in each of the lists with a key
-    assert len(keys) == len(values), "Cannot combine these names with these values!"
+    # Use those keys to get a list of values for each option
+    # ! IMPORTANT ! this assumes that these attributes are lists/iterables
+    values = [getattr(args, key) for key in keys]
 
-    # Combine each item in each list in values with all other items
+    # To stress the above point, check if `values` is a list of lists
+    assert all(isinstance(val, list) for val in values), "Configuration contains non-list key"
+
+    # Now combine each item in each list of options in values with each other
+    # Ie [[1,2], ['a', 'b']] gives (1,a), (1,b), (2,a), (2,b)
     for conf in itertools.product(*values):
 
-        # Use the list of keys defined above to create a namespace
-        yield Namespace(
-            **dict(zip(keys, conf))
-        )
+        # Now map the keys back to the values
+        yield Namespace( **dict(zip(keys, conf)) )
 
 
 def get_experiment_folder(conf: Namespace, makedirs: bool=True) -> str:
@@ -70,7 +63,7 @@ def get_experiment_folder(conf: Namespace, makedirs: bool=True) -> str:
                           as returned by iterate_configurations
         makedirs: bool - Whether to create a folder, if not already exists
     """
-    path = os.path.join(EXPERIMENT_FOLDER, 
+    path = os.path.join(EXPERIMENT_FOLDER,
                         conf.dataset,
                         conf.feature,
                         conf.approach,
@@ -93,13 +86,18 @@ def gather_results(dataset: Dataset,
         dataset.set_fold(k)
         dataset.select(None)
 
-        data[f'fold{k}'] = APPROACHES[conf.approach](dataset=dataset, conf=conf)
-    
+        calibrated_scores = APPROACHES[conf.approach](dataset=dataset, conf=conf)
+
+        data[f'fold{k}'] = {
+            'scores': calibrated_scores,
+            'metrics': get_metrics(calibrated_scores, dataset, conf)
+        }
+
     return data
 
 
 def main():
-    results_for_plotting = dict()
+    results_for_plotting = []
 
     # Try each configuration, as derived from args
     for conf in iterate_configurations():
@@ -110,33 +108,41 @@ def main():
         exp_folder = get_experiment_folder(conf)
 
         dataset = Dataset(name=conf.dataset, feature=conf.feature)
-        
+
         # Check if experiment is already run
         saveto = os.path.join( exp_folder, 'results.npy' )
         if not os.path.isfile(saveto):
-        
-            # np.save(saveto, {})
-            data = gather_results(dataset=dataset, conf=conf)
 
-            with open(saveto, 'wb') as f:
-                pickle.dump(data, f)
-        
+            # np.save(saveto, {})
+            try:
+                data = gather_results(dataset=dataset, conf=conf)
+
+                with open(saveto, 'wb') as f:
+                    pickle.dump(data, f)
+            except Exception as e:
+                data = None
+                print("ERROR, could not run experiment! It gives the following error:")
+                print(e)
+                traceback.print_exc(limit=None, file=None, chain=True)
+
         else:
             with open(saveto, 'rb') as f:
                 data = pickle.load(f, fix_imports=True)
 
-        if args.visualize:
-            results_for_plotting[conf.approach] = data
+        if args.visualize and data is not None:
+            results_for_plotting.append((conf, data))
 
         dataset.select(None)
         print("\nExperiment finished, find results at", saveto)
         print(("="*80))
-    
+
     if args.visualize:
-        violinplot(**results_for_plotting)
+        pass
+        # violinplot(dataset, results_for_plotting)
+        # fpr2globalfpr(dataset, results_for_plotting)
 
     print("Done!")
-        
+
 
 if __name__ == '__main__':
     main()
