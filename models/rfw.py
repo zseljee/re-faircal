@@ -28,26 +28,28 @@ class RFWImages(Dataset):
             csv_file: str - CSV file containing all information about the data (paths to images, labels, etc)
             transform: Optional[Compose] - Optionally add some transformations when reading data
         """
-        
+
         # Convert to global paths for interpretable printing
         data_root = os.path.abspath(data_root)
         csv_file = os.path.abspath(csv_file)
 
         # Save location of data
         self.data_root = data_root
-        
+
         # Open CSV as 'data', reading of images happesn in BFWFold
         df = pd.read_csv( csv_file )
 
         names_left = {
-            'filepath1': 'path',
+            'path1': 'path',
             'id1': 'id',
+            'ethnicity': 'ethnicity'
         }
         group_left = df[ list(names_left.keys()) ].rename(columns=names_left).groupby('path').first()
 
         names_right = {
-            'filepath2': 'path',
+            'path2': 'path',
             'id2': 'id',
+            'ethnicity': 'ethnicity'
         }
         group_right = df[ list(names_right.keys()) ].rename(columns=names_right).groupby('path').first()
 
@@ -58,19 +60,19 @@ class RFWImages(Dataset):
 
         self.transform = transform
 
-    
+
     def __len__(self):
         """Give length of DataSet"""
         return len(self.dataframe)
 
-    
+
     def __getitem__(self, idx):
         """
         Given some index, give images and label corresponding to that pair
 
         Parameters:
             idx: ? - Index of the sample TODO: what type is idx?
-        
+
         Returns:
             WIP
         """
