@@ -41,8 +41,8 @@ def parse() -> argparse.Namespace:
         help='approaches',
         type=str,
         nargs='+',
-        choices=['baseline', 'faircal', 'fsn', 'agenda', 'ftc', 'oracle'],
-        default=['baseline', 'faircal', ],#'faircal', 'fsn', 'agenda', 'ftc', 'oracle']
+        choices=['uncalibrated', 'baseline', 'oracle', 'faircal'],#, 'fsn', 'agenda', 'ftc'], TODO
+        default=['uncalibrated', 'baseline', 'oracle', 'faircal'],#, 'fsn', 'agenda', 'ftc'],
     )
 
     parser.add_argument(
@@ -50,8 +50,8 @@ def parse() -> argparse.Namespace:
         help='calibration methods',
         type=str,
         nargs='+',
-        choices=['beta', 'binning', 'isotonic_regression'],
-        default=['beta', ],#'binning', 'isotonic_regression'],
+        choices=['beta', ],#'binning', 'isotonic_regression'], TODO
+        default=['beta', ],#'binning', 'isotonic_regression'], TODO
     )
 
     parser.add_argument(

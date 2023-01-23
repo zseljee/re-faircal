@@ -11,7 +11,7 @@ from dataset import Dataset
 
 def violinplot(**approaches):
 
-    fig, axs = plt.subplots(1,len(approaches), squeeze=False, figsize=(20,10))
+    fig, axs = plt.subplots(1,len(approaches), squeeze=False, figsize=(20,10), sharey=True)
     axs = axs.flatten()
 
     for approach, ax in zip(approaches, axs):
@@ -50,5 +50,6 @@ def violinplot(**approaches):
 
         ax.set_title(approach)
         ax.set_ylabel("Probability")
+        ax.legend(loc='lower right')
 
     plt.show()

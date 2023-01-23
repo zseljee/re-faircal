@@ -35,20 +35,6 @@ def faircal(dataset: Dataset, conf: Namespace) -> dict:
     df['cluster1'] = df['path1'].apply(lambda path: cluster_assignments[ path2embidx[path] ] )
     df['cluster2'] = df['path2'].apply(lambda path: cluster_assignments[ path2embidx[path] ] )
 
-    # Set up calibrator on entire train set
-    print("Setting up global calibrator...")
-    calibrator = BetaCalibration(df[~select_test]['score'], df[~select_test]['same'])
-
-    # Use calibrated scores to set a threshold
-    calibrated_scores = calibrator.predict( df[~select_test]['score'] )
-    thr = get_threshold(calibrated_scores, df[~select_test]['same'], conf.fpr_thr)
-
-    # Save calibrated scores on test set too
-    fpr = 0. # TODO compute FPR for test set
-
-    data['threshold'][f'global'] = thr
-    data['fpr'][f'global'] = fpr
-
 
     # Set up calibrators for each of the clusters
     print("Setting up calibrators for each cluster...")
@@ -61,7 +47,7 @@ def faircal(dataset: Dataset, conf: Namespace) -> dict:
         select = (df['cluster1'] == cluster) & (df['cluster2'] == cluster) & (~select_test)
         
         # Take note of the cluster size (is used below)
-        cluster_sizes[cluster] = np.sum(select)
+        cluster_sizes[cluster] = np.count_nonzero(select)
 
         # Set up calibrator on current selection
         calibrator = BetaCalibration(df['score'][select], df['same'][select], score_min=-1, score_max=1)
@@ -92,15 +78,21 @@ def faircal(dataset: Dataset, conf: Namespace) -> dict:
     # Normalize calibrated scores by cumulative cluster size
     df['calibrated_score'] = calibrated_score/norm_fact
 
-    # Save results
-    keepCols = ['test', 'score', 'calibrated_score', 'ethnicity', 'pair', 'same']
-    data['df'] = df[keepCols]
+    # Use calibrated scores to set a threshold
+    print("Computing global results...")
+    thr = get_threshold(df['calibrated_score'][~select_test], df['same'][~select_test], conf.fpr_thr)
+
+    # Save calibrated scores on test set too
+    fpr = 0. # TODO compute FPR for test set
+
+    data['threshold'][f'global'] = thr
+    data['fpr'][f'global'] = fpr
 
     print("Computing results for subgroups...")
     for subgroup in dataset.iterate_subgroups(use_attributes='ethnicity'):
 
         # TODO this can be cleaner?
-        select = np.copy(select_test)
+        select = np.copy(~select_test)
         for col in dataset.consts['sensitive_attributes']['ethnicity']['cols']:
             select &= (df[col] == subgroup['ethnicity'])
 
@@ -109,5 +101,9 @@ def faircal(dataset: Dataset, conf: Namespace) -> dict:
 
         data['threshold'][subgroup['ethnicity']] = thr
         data['fpr'][subgroup['ethnicity']] = fpr
+
+    # Save results
+    keepCols = ['test', 'score', 'calibrated_score', 'ethnicity', 'pair', 'same']
+    data['df'] = df[keepCols]
 
     return data
