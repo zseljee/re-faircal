@@ -1,0 +1,15 @@
+\begin{table}
+\caption{Accuracy measured by TPR at two different FPR thresholds for original and reproduced approaches.}
+\begin{tabular}{l|rrr|rrr|rrr|rrr|}
+\toprule
+Dataset & \multicolumn{12}{c|}{RFW} \\
+Feature & \multicolumn{6}{c|}{FaceNet (VGGFace2)} & \multicolumn{6}{c|}{FaceNet (WebFace)} \\
+Metric & \multicolumn{3}{c|}{TPR @ 0.1\% FPR} & \multicolumn{3}{c|}{TPR @ 1.0\% FPR} & \multicolumn{3}{c|}{TPR @ 0.1\% FPR} & \multicolumn{3}{c|}{TPR @ 1.0\% FPR} \\
+By & Salvador & FACT-AI & diff. & Salvador & FACT-AI & diff. & Salvador & FACT-AI & diff. & Salvador & FACT-AI & diff. \\
+\midrule
+Baseline & 18.42 & 17.51 &  -0.9 & 34.88 & 39.18 &  +4.3 & 11.18 & 8.95 &  -2.2 & 26.04 & 24.49 &  -1.5 \\
+FairCal & 23.55 & 11.78 & -11.8 & 41.88 & 45.77 &  +3.9 & 20.64 & 6.49 & -14.1 & 33.13 & 30.93 &  -2.2 \\
+Oracle & 21.40 & 21.13 &  -0.3 & 41.83 & 46.65 &  +4.8 & 16.71 & 11.01 &  -5.7 & 31.60 & 30.92 &  -0.7 \\
+\bottomrule
+\end{tabular}
+\end{table}
