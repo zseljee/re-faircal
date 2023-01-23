@@ -19,7 +19,7 @@ def parse() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        '--datasets',
+        '--dataset',
         help='name(s) of dataset',
         type=str,
         nargs="+",
@@ -28,7 +28,7 @@ def parse() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        '--features',
+        '--feature',
         help='features',
         type=str,
         nargs="+",
@@ -37,7 +37,7 @@ def parse() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        '--approaches',
+        '--approach',
         help='approaches',
         type=str,
         nargs='+',
@@ -46,7 +46,7 @@ def parse() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        '--calibration_methods',
+        '--calibration_method',
         help='calibration methods',
         type=str,
         nargs='+',
@@ -55,25 +55,17 @@ def parse() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        '--n_clusters',
+        '--n_cluster',
         help='Number of clusters for KMeans',
         type=int,
         nargs='+',
         default=[100,]
     )
 
-    parser.add_argument(
-        '--fpr_thrs',
-        help='FPR thresholds',
-        type=float,
-        nargs='+',
-        default=[.05,]
-    )
-    
     args = parser.parse_args()
 
     args = validate(args)
-    
+
     return args
 
 def validate(args: argparse.Namespace) -> argparse.Namespace:
