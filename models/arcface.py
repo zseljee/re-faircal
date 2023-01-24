@@ -1,15 +1,52 @@
 """
+Requires the model to be downloaded from:
+https://s3.amazonaws.com/onnx-model-zoo/arcface/resnet100.onnx
 
-Based on the Pytorch tutorial on how to use onnxruntime:
-https://pytorch.org/tutorials/advanced/super_resolution_with_onnxruntime.html
+Based on the notebook on how to run the model:
+https://github.com/onnx/models/blob/8e893eb39b131f6d3970be6ebd525327d3df34ea/vision/body_analysis/arcface/dependencies/arcface_inference.ipynb
 """
 
+import mxnet as mx
 import numpy as np
-import onnx
+import sklearn
+import sklearn.preprocessing
 import torch
 
-from onnxruntime import InferenceSession
+from mxnet.contrib.onnx.onnx2mx.import_model import import_model
 from torchvision.transforms import Resize
+
+
+def get_model(ctx, model):
+    image_size = (112,112)
+    # Import ONNX model
+    sym, arg_params, aux_params = import_model(model)
+    # Define and binds parameters to the network
+    model = mx.mod.Module(symbol=sym, context=ctx, label_names = None)
+    model.bind(data_shapes=[('data', (1, 3, image_size[0], image_size[1]))])
+    model.set_params(arg_params, aux_params)
+    return model
+
+
+# Determine and set context
+if len(mx.test_utils.list_gpus())==0:
+    ctx = mx.cpu()
+else:
+    ctx = mx.gpu(0)
+
+
+def get_feature(model, aligned):
+    input_blob = np.expand_dims(aligned, axis=0)
+    data = mx.nd.array(input_blob)
+    db = mx.io.DataBatch(data=(data,))
+    model.forward(db, is_train=False)
+    embedding = model.get_outputs()[0]
+    try:
+        embedding.asnumpy()
+    except:
+        pass
+    embedding = embedding.asnumpy()
+    embedding = sklearn.preprocessing.normalize(embedding).flatten()
+    return embedding
 
 
 class ArcFace():
@@ -17,11 +54,7 @@ class ArcFace():
     as a pytorch like object.
     """
     def __init__(self, model_path: str):
-        onnx_model = onnx.load_model(model_path)
-        # Sanity check that the model works
-        onnx.checker.check_model(onnx_model)
-        self.onnx_model = onnx_model
-        self.ort_session = InferenceSession(model_path, providers=['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider'])
+        self.mxnet_model = get_model(ctx, model_path)
 
     def __call__(self, *args, **kwargs):
         return self.forward(*args, **kwargs)
@@ -37,19 +70,16 @@ class ArcFace():
         """
         emb_batch = []
         for img in img_batch:
-            resized_img = Resize((112, 112))(img).unsqueeze(0)
-            # Compute ONNX Runtime output prediction
-            # print(resized_img.shape)
-            ort_session = self.ort_session
-            ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(resized_img)}
-            ort_outs = ort_session.run(None, ort_inputs)
-            emb_batch.append(ort_outs[0])
+            resized_img = Resize((112, 112))(img)
+            emb = get_feature(self.mxnet_model, resized_img)
+            emb_batch.append(emb)
         return torch.tensor(np.array(emb_batch))
 
     def to(self, _device):
         """Eats the call to move the model to the GPU, no clue how to do
-        that with onnxruntime in a way that's compatible with pytorch.
+        that with mxnet in a way that's compatible with pytorch.
         """
+        print("Warning: Cannot change context, not implemented.  Current context is", ctx)
         return self
 
 
