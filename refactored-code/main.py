@@ -1,9 +1,7 @@
 import os
 import pickle
 import traceback
-from typing import Any, Iterator
 from argparse import Namespace
-import itertools
 
 import numpy as np
 
@@ -14,7 +12,6 @@ from dataset import Dataset
 from utils import iterate_configurations, get_experiment_folder
 from approaches import uncalibrated, baseline, faircal, oracle
 from approaches.utils import get_metrics
-from visualisations import violinplot, fpr2globalfpr
 
 APPROACHES = {
     'baseline': baseline,
@@ -66,9 +63,8 @@ def main():
 
         # Check if experiment is already run
         saveto = os.path.join( exp_folder, 'results.npy' )
-        if not os.path.isfile(saveto):
+        if not os.path.isfile(saveto) or args.ignore_existing:
 
-            # np.save(saveto, {})
             try:
                 data = gather_results(dataset=dataset, conf=conf)
 
@@ -84,21 +80,12 @@ def main():
             with open(saveto, 'rb') as f:
                 data = pickle.load(f, fix_imports=True)
 
-        if args.visualize and data is not None:
-            results_for_plotting.append((conf, data))
-
         dataset.select(None)
         print("\nExperiment finished, find results at", saveto)
         print(("="*80))
-
-    if args.visualize:
-        violinplot(dataset, results_for_plotting)
-        # fpr2globalfpr(dataset, results_for_plotting)
 
     print("Done!")
 
 
 if __name__ == '__main__':
     main()
-    # from visualisations import table_accuracy
-    # table_accuracy()
