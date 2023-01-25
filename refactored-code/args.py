@@ -3,17 +3,9 @@ import argparse
 def parse() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
-    # TODO
-    # parser.add_argument(
-    #     "-v", "--verbose",
-    #     help="Provide extra information on what process is happening.  Can be stacked up to 4 times.",
-    #     action="count",
-    #     default=0,
-    # )
-
     parser.add_argument(
-        '--visualize',
-        help='Visualize results after running',
+        '--ignore_existing',
+        help='Ignore existing experiment files (does not ignore KMeans files!)',
         action='store_true',
         default=False
     )
@@ -32,8 +24,8 @@ def parse() -> argparse.Namespace:
         help='features',
         type=str,
         nargs="+",
-        choices=['facenet', 'facenet-webface', 'arcface'],
-        default=['facenet', 'facenet-webface', 'arcface']
+        choices=['facenet', 'facenet-webface'],
+        default=['facenet', 'facenet-webface']
     )
 
     parser.add_argument(
@@ -41,8 +33,8 @@ def parse() -> argparse.Namespace:
         help='approaches',
         type=str,
         nargs='+',
-        choices=['uncalibrated', 'baseline', 'oracle', 'faircal'],#, 'fsn', 'agenda', 'ftc'], TODO
-        default=['uncalibrated', 'baseline', 'oracle', 'faircal'],#, 'fsn', 'agenda', 'ftc'],
+        choices=['uncalibrated', 'baseline', 'oracle', 'faircal'],
+        default=['uncalibrated', 'baseline', 'oracle', 'faircal'],
     )
 
     parser.add_argument(
@@ -50,8 +42,8 @@ def parse() -> argparse.Namespace:
         help='calibration methods',
         type=str,
         nargs='+',
-        choices=['beta', ],#'binning', 'isotonic_regression'], TODO
-        default=['beta', ],#'binning', 'isotonic_regression'], TODO
+        choices=['beta', ],
+        default=['beta', ],
     )
 
     parser.add_argument(
