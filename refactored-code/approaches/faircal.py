@@ -52,13 +52,13 @@ def faircal(dataset: Dataset, conf: Namespace) -> np.ndarray:
     for cluster in range(conf.n_cluster):
 
         # Now select the train image pairs where both images are assigned to the current cluster
-        select = (df['cluster1'] == cluster) & (df['cluster2'] == cluster) & (df['test'] == False)
+        select = ((df['cluster1'] == cluster) | (df['cluster2'] == cluster)) & (df['test'] == False)
 
         # Take note of the cluster size (is used for weighted average)
         cluster_sizes[cluster] = np.count_nonzero(select)
 
         # Set up calibrator on current selection
-        calibrator = BetaCalibration(df['score'][select], df['same'][select], score_min=-1, score_max=1)
+        calibrator = BetaCalibration(df['score'][select].astype(float), df['same'][select].astype(int), score_min=-1, score_max=1)
         calibrators[cluster] = calibrator
 
     # Set up calibrated scores as all zeros
