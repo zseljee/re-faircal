@@ -66,17 +66,12 @@ def thr_at_fpr(thr, fpr, target_fpr):
     Returns:
         thr: float - Threshold at which the FPR for the given data is closest to the target FPR
     """
-    # Get index of item that is closest to the target FPR
-    idx = np.argmin(np.abs(fpr-target_fpr))
-
-    # Return the corresponding threshold
-    return thr[idx]
+    return np.interp(target_fpr, fpr, thr)
 
 
 def tpr_at_fpr(tpr, fpr, target_fpr):
     """
-    Given a list of FPR and corresponding TPR, give the TPR where the corresponding
-    FPR is closest to the target FPR.
+    Interpolate fpr->tpr to find fpr for a target fpr
 
     Parameters:
         thr: np.ndarray - A 1D np array containing thresholds
@@ -86,8 +81,6 @@ def tpr_at_fpr(tpr, fpr, target_fpr):
     Returns:
         tpr: float - TPR at target FPR
     """
-    # Get index of item that is closest to the target FPR
-    idx = np.argmin(np.abs(fpr-target_fpr))
 
     # Return the corresponding threshold
-    return tpr[idx]
+    return np.interp(target_fpr, fpr, tpr)
