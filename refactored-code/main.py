@@ -10,14 +10,15 @@ from constants import *
 from dataset import Dataset
 
 from utils import iterate_configurations, get_experiment_folder
-from approaches import uncalibrated, baseline, faircal, oracle
+from approaches import uncalibrated, baseline, faircal, oracle, fsn
 from approaches.utils import get_metrics
 
 APPROACHES = {
+    'uncalibrated': uncalibrated,
     'baseline': baseline,
     'faircal': faircal,
     'oracle': oracle,
-    'uncalibrated': uncalibrated
+    'fsn': fsn,
 }
 
 

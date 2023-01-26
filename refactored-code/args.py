@@ -33,8 +33,8 @@ def parse() -> argparse.Namespace:
         help='approaches',
         type=str,
         nargs='+',
-        choices=['uncalibrated', 'baseline', 'oracle', 'faircal'],
-        default=['uncalibrated', 'baseline', 'oracle', 'faircal'],
+        choices=['uncalibrated', 'baseline', 'oracle', 'faircal', 'fsn'],
+        default=['uncalibrated', 'baseline', 'oracle', 'faircal', 'fsn'],
     )
 
     parser.add_argument(
@@ -52,6 +52,13 @@ def parse() -> argparse.Namespace:
         type=int,
         nargs='+',
         default=[100,]
+    )
+
+    parser.add_argument(
+        '--fpr_thr',
+        help='FPR used for FSN method',
+        type=float,
+        default=1e-3
     )
 
     args = parser.parse_args()

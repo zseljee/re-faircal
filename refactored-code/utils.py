@@ -50,9 +50,12 @@ def iterate_configurations(args: Namespace, keys: None|list[str]=None) -> Namesp
     # To stress the above point, check if `values` is a list of lists
     assert all(isinstance(val, list) for val in values), "Configuration contains non-list key"
 
+    remainder = dict([(key, getattr(args, key)) for key in vars(args) if key not in keys])
+    print(remainder)
+
     # Now combine each item in each list of options in values with each other
     # Ie [[1,2], ['a', 'b']] gives (1,a), (1,b), (2,a), (2,b)
     for conf in itertools.product(*values):
 
         # Now map the keys back to the values
-        yield Namespace( **dict(zip(keys, conf)) )
+        yield Namespace( **dict(zip(keys, conf)), **remainder)
