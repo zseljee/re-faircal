@@ -33,6 +33,7 @@ def gather_results(dataset: Dataset,
         dataset.select(None)
 
         calibrated_scores = APPROACHES[conf.approach](dataset=dataset, conf=conf)
+        dataset.select(None)
 
         data[f'fold{k}'] = {
             'scores': calibrated_scores,
@@ -43,7 +44,8 @@ def gather_results(dataset: Dataset,
 
 
 def main():
-    results_for_plotting = []
+
+    os.makedirs(os.path.join(EXPERIMENT_FOLDER, 'kmeans'), exist_ok=True)
 
     # Try each configuration, as derived from args
     for conf in iterate_configurations(args):

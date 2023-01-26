@@ -34,22 +34,15 @@ def oracle(dataset: Dataset, conf: Namespace) -> np.ndarray:
     for subgroup in dataset.iterate_subgroups():
 
         # Set up select mask for left and right image, initialize as all True
-        select1 = np.full_like(calibrated_score, True, dtype=bool) # TODO this can be cleaner
-        select2 = np.full_like(calibrated_score, True, dtype=bool) # TODO this can be cleaner
+        select = np.full_like(calibrated_score, True, dtype=bool) # TODO this can be cleaner
 
         # Iterate attributes of subgroup
         for attribute in subgroup:
 
-            # Get columns of current attribute
-            col1,col2 =  dataset.consts['sensitive_attributes'][subgroup[attribute]]['cols']
-
-            # Update masks for both images of current attribute value
-            select1 &= (df[col1] == subgroup[subgroup[attribute]])
-            select2 &= (df[col2] == subgroup[subgroup[attribute]])
-
-        # Total mask is the element-wise OR of both mask
-        # Ie where either left or right image belongs to current subgroup
-        select = select1 | select2
+            # Get columns of current attribute, is always only 2 (for left and right image)
+            for col in dataset.consts['sensitive_attributes'][attribute]['cols']:
+                # Update masks for both images of current attribute value
+                select &= (df[col] == subgroup[attribute])
 
         # Mask to select the train data of the above select
         select_train = select & (df['test'] == False)

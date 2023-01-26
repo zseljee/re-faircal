@@ -32,7 +32,7 @@ def faircal(dataset: Dataset, conf: Namespace) -> np.ndarray:
     print("Training using KMeans...")
     kmeans: KMeans = dataset.train_cluster(n_clusters=conf.n_cluster, save=True)
 
-    # Get embeddings from dataset, together with mappers
+    # Get embeddings from dataset, together with mapper
     print("Predicting using KMeans...")
     embeddings, idx2path = dataset.get_embeddings(train=None, return_mapper=True)
     path2embidx = dict((path,i) for i,path in enumerate(idx2path))
@@ -52,7 +52,7 @@ def faircal(dataset: Dataset, conf: Namespace) -> np.ndarray:
     for cluster in range(conf.n_cluster):
 
         # Now select the train image pairs where both images are assigned to the current cluster
-        select = ((df['cluster1'] == cluster) | (df['cluster2'] == cluster)) & (df['test'] == False)
+        select = ( (df['cluster1'] == cluster) | (df['cluster2'] == cluster) ) & (df['test'] == False)
 
         # Take note of the cluster size (is used for weighted average)
         cluster_sizes[cluster] = np.count_nonzero(select)
@@ -65,7 +65,7 @@ def faircal(dataset: Dataset, conf: Namespace) -> np.ndarray:
     calibrated_score = np.zeros_like(df['score'], dtype='float')
 
     # Normalizing factor, to take a weighted average of calibrated scores
-    norm_fact = np.zeros_like(df['score'])
+    norm_fact = np.zeros_like(df['score'], dtype='float')
 
     # Iterate clusters again
     # TODO is this second loop necessary? Can be combined?

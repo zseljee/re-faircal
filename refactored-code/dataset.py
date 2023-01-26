@@ -46,6 +46,11 @@ class Dataset(object):
         # Load embeddings
         self.load_embeddings(self.consts['embeddings'], feature)
 
+        # Make sure the dataset containts only data that has been embedded
+        paths_df = set( self._df['path1'] ) | set( self._df['path2'] )
+        paths_emb = set( self.embidx2path )
+        assert all( path in paths_emb for path in paths_df ), "Some images in the dataframe have not been embedded! This concerns "+str(paths_df-paths_emb)
+
 
     def load_embeddings(self, embeddings_path: str, feature: str) -> None:
         """
@@ -216,6 +221,9 @@ class Dataset(object):
         for attribute in self.consts['sensitive_attributes']:
             if attribute in use_attributes:
                 attributes[attribute] = self.consts['sensitive_attributes'][attribute]['values']
+
+                for value in attributes[attribute]:
+                    yield {attribute: value}
 
         # Now combine each value for each sensitive attribute with each other
         for combination in itertools.product(*attributes.values()):

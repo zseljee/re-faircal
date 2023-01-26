@@ -23,26 +23,43 @@ def get_brier(confidences, ground_truth):
 def get_metrics(confidences: np.ndarray, dataset: Dataset, conf: Namespace) -> dict:
     data = dict()
 
-    subgroups = ['Global',] + dataset.consts['sensitive_attributes']['ethnicity']['values']
-    subgroupCols = dataset.consts['sensitive_attributes']['ethnicity']['cols']
-
     df = dataset.df.copy()
-    df['test'] = (df['fold'] == dataset.fold)
+
+    # Only take test data
+    if dataset.fold is not None:
+        select_test = df['fold'] == dataset.fold
+        df = df[select_test].copy()
+        confidences = confidences[select_test]
 
     ground_truth = df['same'].astype(int).to_numpy()
 
-    for subgroup in subgroups:
+    # Global results
+    fpr, tpr, thr = roc_curve(y_true=ground_truth,
+                              y_score=confidences,
+                              drop_intermediate=False)
 
-        select = (df['test'] == True)
-        if subgroup != 'Global':
-            for col in subgroupCols:
-                select &= (df[col] == subgroup)
+    data['Global'] = {
+        'fpr': fpr,
+        'tpr': tpr,
+        'thr': thr,
+        'ks': get_ks(confidences, ground_truth),
+        'brier': get_brier(confidences, ground_truth)
+    }
+
+    for subgroup in dataset.iterate_subgroups():
+
+        select = np.full_like(confidences, True, dtype=bool)
+        for attribute in subgroup:
+            for col in dataset.consts['sensitive_attributes'][attribute]['cols']:
+                select &= (df[col] == subgroup[attribute])
+            
+        subgroup_key = '_'.join(subgroup.values())
 
         fpr, tpr, thr = roc_curve(y_true=ground_truth[select],
                                   y_score=confidences[select],
                                   drop_intermediate=False)
 
-        data[subgroup] = {
+        data[subgroup_key] = {
             'fpr': fpr,
             'tpr': tpr,
             'thr': thr,
