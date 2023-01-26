@@ -70,6 +70,9 @@ class ArcFace():
         """
         emb_batch = []
         for img in img_batch:
+            # The model seems to require images in the range 0, 255
+            img = img - img.min()
+            img = img * (255 / img.max())
             resized_img = Resize((112, 112))(img)
             emb = get_feature(self.mxnet_model, resized_img)
             emb_batch.append(emb)
