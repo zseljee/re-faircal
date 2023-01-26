@@ -49,7 +49,7 @@ def fsn(dataset: Dataset, conf: Namespace) -> np.ndarray:
     # Find the threshold at which the FPR is the pre-defined target FPR
     global_thr = thr_at_fpr_from_score(score_cal, gt_cal, conf.fpr_thr)
 
-    cluster_thr = np.zeros(conf.n_cluster)
+    cluster_thr = np.zeros(conf.n_cluster, dtype='float')
     for i_cluster in range(conf.n_cluster):
         select = (cluster1_cal == i_cluster) | (cluster2_cal == i_cluster)
         cluster_thr[i_cluster] = thr_at_fpr_from_score(score_cal[select], gt_cal[select], conf.fpr_thr)
@@ -57,6 +57,9 @@ def fsn(dataset: Dataset, conf: Namespace) -> np.ndarray:
     calibrated_score = np.zeros_like(df['score'], dtype='float')
     for i_cluster in range(conf.n_cluster):
         select = (df['cluster1'] == i_cluster)
+        calibrated_score[select] += cluster_thr[i_cluster] - global_thr
+
+        select = (df['cluster2'] == i_cluster)
         calibrated_score[select] += cluster_thr[i_cluster] - global_thr
 
     calibrated_score = df['score'] - (calibrated_score / 2.)
@@ -71,4 +74,4 @@ def fsn(dataset: Dataset, conf: Namespace) -> np.ndarray:
         score_min=score_min,
     )
 
-    return calibrator.predict(df['score'])
+    return calibrator.predict(calibrated_score)

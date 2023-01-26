@@ -43,7 +43,7 @@ def get_metrics(confidences: np.ndarray, dataset: Dataset, conf: Namespace) -> d
         'tpr': tpr,
         'thr': thr,
         'ks': get_ks(confidences, ground_truth),
-        'brier': get_brier(confidences, ground_truth)
+        'brier': get_brier(confidences, ground_truth),
     }
 
     for subgroup in dataset.iterate_subgroups():
@@ -64,7 +64,7 @@ def get_metrics(confidences: np.ndarray, dataset: Dataset, conf: Namespace) -> d
             'tpr': tpr,
             'thr': thr,
             'ks': get_ks(confidences[select], ground_truth[select]),
-            'brier': get_brier(confidences[select], ground_truth[select])
+            'brier': get_brier(confidences[select], ground_truth[select]),
         }
 
     return data
