@@ -31,6 +31,9 @@ skip_configurations = {
 
 
 def get_metrics():
+    """Create a dictionary with information for all configurations.
+    Used to generate the Tables.
+    """
     data = dict()
 
     for conf in itertools.product(*configurations.values()):
@@ -162,6 +165,74 @@ def dictsToIndex(columns, rows):
     return columnIndex, rowIndex
 
 
+def fill_data(data_salvador, rows, metric_names, metrics_dict, metric_to_idx: dict[str, int]):
+    """fills a numpy array in the shape of data_salvador with data from metrics.
+    The metrics are taken from the keys of metric_to_idx and put at an offset of the value.
+    Creates a dataframe from it in the end that also contains the difference.
+    """
+    # Meta-information setup
+    columns = {
+        'approach': ['baseline', 'faircal', 'oracle', 'fsn'],
+        'by': ['Salvador', teamName, 'diff.'],
+    }
+    columnIndex, rowIndex = dictsToIndex(columns, rows)
+
+    # Collect our results
+    data_factai = np.full_like(data_salvador, np.nan)
+    i=0
+    for dataset, feature in itertools.product(rows['dataset'], rows['feature']):
+        if (dataset,feature) in skip_configurations: continue;
+
+        for j, approach in enumerate(columns['approach']):
+            conf = (dataset, feature, approach)
+            for key, offset in metric_to_idx.items():
+                data_factai[i+offset, j] = metrics_dict[conf][key]
+
+        i += len(metric_names)
+
+    # Collect data into single dataframe
+    data = np.zeros((len(rowIndex), len(columnIndex)))
+    data[:,::3] = data_salvador
+    data[:,1::3] = data_factai
+    data[:,2::3] = data_factai - data_salvador
+    df = pd.DataFrame(data, columns=columnIndex, index=rowIndex)
+
+    return df
+
+
+def show_and_write_table(table_df: pd.DataFrame, caption: str, label: str, save_as: str):
+    """Write the table to the save_as file with the given caption and label.
+    """
+    # Only useful in Jupyter...
+    dif_col_formatter = dict((col, '<b>{:+.2f}</b>') for col in table_df.columns if col[-1] == 'diff.')
+    styler = table_df.style.format(dif_col_formatter, na_rep='TBD', precision=2, escape="latex")
+    display(HTML(styler.to_html()))
+
+    # Meta-setup
+    dif_col_formatter = dict((col, '{:+.2f}') for col in table_df.columns if col[-1] == 'diff.')
+    styler = table_df.style.format(dif_col_formatter, na_rep='TBD', precision=2)
+    ncolblocks = len(table_df.columns)//3
+
+    fname = os.path.join(EXPERIMENT_FOLDER, save_as)
+    print("Saving to",fname)
+    table_code = styler.to_latex(
+        None,
+        multicol_align='c|',
+        hrules=True,
+        column_format='l'*(table_df.index.nlevels - 2)+'p{1.6cm}p{1.6cm}|'+('rrr|'*ncolblocks),
+        caption=caption,
+        label=label,
+        position_float='centering',
+        clines='skip-last;index',
+    )
+    table_code = table_code.replace(r"\cline", r"\cmidrule")
+    if resizebox:=True:
+        table_code = table_code.replace(r"\begin{tabular}", "\\resizebox{\columnwidth}{!}{\n\\begin{tabular}")
+        table_code = table_code.replace(r"\end{tabular}", "\\end{tabular}\n}")
+    with open(fname, 'w') as f:
+        f.write(table_code)
+
+
 def gen_table_accuracy():
     # Data from Table 2 in Salvador (2022), excluding AUROC columns (order is kept)
     data_salvador = np.array([
@@ -170,73 +241,26 @@ def gen_table_accuracy():
         [21.40, 41.83,  16.71, 31.60,  45.13, 67.56,  ], # Oracle
         [23.01, 40.21,  17.33, 32.80,  47.11, 68.92,  ], # FSN
     ]).T # <-- ! Note the transpose!
-    data_salvador = data_salvador
-    data_factai = np.full_like(data_salvador, np.nan)
 
-    columns = {
-        # 'approach': ['faircal', 'oracle'],
-        'approach': ['baseline', 'faircal', 'oracle', 'fsn'],
-        'by': ['Salvador', teamName, 'diff.'],
-    }
+    metric_names = ['0.1\% FPR', '1.0\% FPR']
     rows = {
         'dataset': ['rfw', 'bfw'],
         'feature': ['facenet', 'facenet-webface'],
-        'TPR @ ': ['0.1\% FPR', '1.0\% FPR'],
+        'TPR @ ': metric_names,
     }
 
-    i=0
-    for dataset, feature in itertools.product(rows['dataset'], rows['feature']):
-        if (dataset,feature) in skip_configurations: continue;
+    metrics_to_idx = {
+        'TPR @ 0.1\% FPR': 0,
+        'TPR @ 1.0\% FPR': 1,
+    }
 
-        j=0
-        for approach in columns['approach']:
-            conf = (dataset, feature, approach)
-            if conf in skip_configurations: continue;
+    df = fill_data(data_salvador, rows, metric_names, metrics, metrics_to_idx)
 
-            data_factai[i,j] = metrics[conf]['TPR @ 0.1\% FPR']
-            data_factai[i+1,j] = metrics[conf]['TPR @ 1.0\% FPR']
-
-            j+=1
-        i+=2
-
-    columnIndex, rowIndex = dictsToIndex(columns, rows)
-
-    data = np.zeros((len(rowIndex), len(columnIndex)))
-
-    data[:,::3] = data_salvador
-    data[:,1::3] = data_factai
-    data[:,2::3] = data_factai - data_salvador
-
-    df = pd.DataFrame(data, columns=columnIndex, index=rowIndex)
-
-    dif_col_formatter = dict((col, '<b>{:+.2f}</b>') for col in df.columns if col[-1] == 'diff.')
-    styler = df.style.format(dif_col_formatter, na_rep='TBD', precision=2, escape="latex")
-    display(HTML(styler.to_html()))
-
-
-    caption = "Global accuracy measured by TPR at several FPR thresholds, comparing the original results (Sal.) with ours. (Higher is better.)"
-    dif_col_formatter = dict((col, '{:+.2f}') for col in df.columns if col[-1] == 'diff.')
-    styler = df.style.format(dif_col_formatter, na_rep='TBD', precision=2)
-    ncolblocks = len(columnIndex)//3
-
-    fname = os.path.join(EXPERIMENT_FOLDER, 'table_accuracy.tex')
-    print("Saving to",fname)
-    with open(fname, 'w') as f:
-        table = styler.to_latex(
-            None,
-            multicol_align='c|',
-            hrules=True,
-            column_format='lp{1.6cm}p{1.6cm}|'+('rrr|'*ncolblocks),
-            caption=caption,
-            label="tab:accuracy",
-            position_float='centering',
-            clines='skip-last;index',
-        )
-        table = table.replace(r"\cline", r"\cmidrule")
-        if resizebox:=True:
-            table = table.replace(r"\begin{tabular}", "\\resizebox{\columnwidth}{!}{\n\\begin{tabular}")
-            table = table.replace(r"\end{tabular}", "\\end{tabular}\n}")
-        f.write(table)
+    show_and_write_table(df,
+                         caption = "Global accuracy measured by TPR at several FPR thresholds, comparing the original results (Sal.) with ours. (Higher is better.)",
+                         label="tab:accuracy",
+                         save_as = 'table_accuracy.tex'
+    )
 
 gen_table_accuracy()
 
@@ -254,85 +278,43 @@ def gen_table_fairness(full=True):
     ]).T # <-- ! Note the Transpose
     if not full:
         data_salvador = data_salvador[[0, 3, 4, 7, 8, 11]]
-    data_factai = np.full_like(data_salvador, np.nan)
 
-    columns = {
-        # 'approach': ['faircal', 'oracle'],
-        'approach': ['baseline', 'faircal', 'oracle', 'fsn'],
-        'by': ['Salvador', teamName, 'diff.'],
-    }
-    metrics_to_include = ['Mean', 'AAD', 'MAD', 'STD'] if full else ['Mean', 'STD']
+    metric_names = ['Mean', 'AAD', 'MAD', 'STD'] if full else ['Mean', 'STD']
     rows = {
         'dataset': ['rfw', 'bfw'],
         'feature': ['facenet', 'facenet-webface'],
-        'metric': metrics_to_include,
+        'metric': metric_names,
     }
-    columnIndex, rowIndex = dictsToIndex(columns, rows)
 
-    i=0
-    for dataset, feature in itertools.product(rows['dataset'], rows['feature']):
-        if (dataset,feature) in skip_configurations: continue;
+    if full:
+        metrics_to_idx = {
+            'KS - Mean': 0,
+            'KS - AAD': 1,
+            'KS - MAD': 2,
+            'KS - STD': 3,
+        }
+    else:
+        metrics_to_idx = {
+            'KS - Mean': 0,
+            'KS - STD': 1,
+        }
 
-        j=0
-        for approach in columns['approach']:
-            conf = (dataset, feature, approach)
-            if conf in skip_configurations: continue;
+    df = fill_data(data_salvador, rows, metric_names, metrics, metrics_to_idx)
 
-            if full:
-                data_factai[i+0,j] = metrics[conf]['KS - Mean']
-                data_factai[i+1,j] = metrics[conf]['KS - AAD']
-                data_factai[i+2,j] = metrics[conf]['KS - MAD']
-                data_factai[i+3,j] = metrics[conf]['KS - STD']
-            else:
-                data_factai[i+0,j] = metrics[conf]['KS - Mean']
-                data_factai[i+1,j] = metrics[conf]['KS - STD']
-
-            j+=1
-        i+=len(metrics_to_include)
-    data = np.zeros((len(rowIndex), len(columnIndex)))
-    data[:,::3] = data_salvador
-    data[:,1::3] = data_factai
-    data[:,2::3] = data_factai-data_salvador
-
-    df = pd.DataFrame(data, columns=columnIndex, index=rowIndex)
-    # if not full:
-    #     df = df[df["Metric"].isin(['Mean', 'STD'])]
-
-    dif_col_formatter = dict((col, '<b>{:+.2f}</b>') for col in df.columns if col[-1] == 'diff.')
-    styler = df.style.format(dif_col_formatter, na_rep='TBD', precision=2, escape="latex")
-    display(HTML(styler.to_html()))
-
-
-    caption = "Fairness calibration measured by the mean KS across the sensitive subgroups. Showing the Mean, Average Absolute Deviation (AAD), Maximum Absolute Deviation (MAD) and Standard Deviation (STD). Comparing original results (Sal.) with ours. (Lower is better in all cases)"
-    print(caption)
-    dif_col_formatter = dict((col, '{:+.2f}') for col in df.columns if col[-1] == 'diff.')
-    styler = df.style.format(dif_col_formatter, na_rep='TBD', precision=2)
-    ncolblocks = len(columnIndex)//3
-
-    fname = os.path.join(EXPERIMENT_FOLDER, 'table_fairness.tex' if full else 'table_fairness_partial.tex')
-    print("Saving to",fname)
-    with open(fname, 'w') as f:
-        table = styler.to_latex(
-            None,
-            multicol_align='c|',
-            hrules=True,
-            column_format='lp{1.6cm}p{1.6cm}|'+('rrr|'*ncolblocks),
-            caption=caption,
-            label="tab:fairness-full" if full else "tab:fairness",
-            position_float='centering',
-            clines='skip-last;index',
-        )
-        table = table.replace(r"\cline", r"\cmidrule")
-        if resizebox:=True:
-            table = table.replace(r"\begin{tabular}", "\\resizebox{\columnwidth}{!}{\n\\begin{tabular}")
-            table = table.replace(r"\end{tabular}", "\\end{tabular}\n}")
-        f.write(table)
+    show_and_write_table(df,
+                         caption = "Fairness calibration measured by the mean KS across the sensitive subgroups. Showing the Mean, Average Absolute Deviation (AAD), Maximum Absolute Deviation (MAD) and Standard Deviation (STD). Comparing original results (Sal.) with ours. (Lower is better in all cases)",
+                         label="tab:fairness-full" if full else "tab:fairness",
+                         save_as = 'table_fairness.tex' if full else 'table_fairness_partial.tex',
+    )
 
 gen_table_fairness()
 gen_table_fairness(full=False)
 
 
 def gen_table_predictive_equality(full=True):
+    """
+    full determines whether the AAD and MAD should be include
+    """
     # Data from Table 4 in Salvador (2022)
     data_salvador = np.array([
         [0.10, 0.15, 0.10,  0.14, 0.26, 0.16,  0.29, 1.00, 0.40,   0.68, 1.02, 0.74,  0.67, 1.23, 0.79,  2.42, 7.48, 3.22, ], # Baseline
@@ -343,82 +325,37 @@ def gen_table_predictive_equality(full=True):
     if not full:
         data_salvador = data_salvador[[2, 5, 8, 11, 14, 17]]
 
-    data_factai = np.full_like(data_salvador, np.nan)
-
-    columns = {
-        # 'approach': ['faircal', 'oracle'],
-        'approach': ['baseline', 'faircal', 'oracle', 'fsn'],
-        'by': ['Salvador', teamName, 'diff.'],
-    }
-    metrics_to_include = ['AAD', 'MAD', 'STD'] if full else ['STD']
+    metric_names = ['AAD', 'MAD', 'STD'] if full else ['STD']
     rows = {
         'threshold': ['0.1\% FPR','1.0\% FPR'],
         'dataset': ['rfw', 'bfw'],
         'feature': ['facenet', 'facenet-webface'],
-        'metric': metrics_to_include,
+        'metric': metric_names,
     }
 
-    i=0
-    for dataset, feature in itertools.product(rows['dataset'], rows['feature']):
-        if (dataset,feature) in skip_configurations: continue;
+    if full:
+        metrics_to_idx = {
+            'FPR @ 0.1\% global FPR - AAD': 0,
+            'FPR @ 0.1\% global FPR - MAD': 1,
+            'FPR @ 0.1\% global FPR - STD': 2,
+            'FPR @ 1.0\% global FPR - AAD': 9,
+            'FPR @ 1.0\% global FPR - MAD': 10,
+            'FPR @ 1.0\% global FPR - STD': 11,
+        }
+    else:
+        metrics_to_idx = {
+            'FPR @ 0.1\% global FPR - STD': 0,
+            'FPR @ 1.0\% global FPR - STD': 3,
+        }
 
-        j=0
-        for approach in columns['approach']:
-            conf = (dataset, feature, approach)
+    df = fill_data(data_salvador, rows, metric_names, metrics, metrics_to_idx)
 
-            if full:
-                data_factai[i+0,j] = metrics[conf]['FPR @ 0.1\% global FPR - AAD']
-                data_factai[i+1,j] = metrics[conf]['FPR @ 0.1\% global FPR - MAD']
-                data_factai[i+2,j] = metrics[conf]['FPR @ 0.1\% global FPR - STD']
+    show_and_write_table(df,
+                         caption="Predictive equality: For two choices of global FPR compare the deviations in subgroup FPRs in terms of Average Absolute Deviation (AAD), Maximum Absolute Deviation (MAD), and Standard Deviation (STD). Comparing original results (Sal.) with ours. (Lower is better in all cases)",
+                         label="tab:predictive-equality-full" if full else "tab:predictive-equality",
+                         save_as = 'table_predictive_equality.tex' if full else 'table_predictive_equality_partial.tex',
+    )
 
-                data_factai[i+9,j] = metrics[conf]['FPR @ 1.0\% global FPR - AAD']
-                data_factai[i+10,j] = metrics[conf]['FPR @ 1.0\% global FPR - MAD']
-                data_factai[i+11,j] = metrics[conf]['FPR @ 1.0\% global FPR - STD']
-            else:
-                data_factai[i+0,j] = metrics[conf]['FPR @ 0.1\% global FPR - STD']
-                data_factai[i+3,j] = metrics[conf]['FPR @ 1.0\% global FPR - STD']
-
-            j+=1
-        i+=3 if full else 1
-
-    columnIndex, rowIndex = dictsToIndex(columns, rows)
-
-    data = np.zeros((len(rowIndex), len(columnIndex)))
-    data[:,::3] = data_salvador
-    data[:,1::3] = data_factai
-    data[:,2::3] = data_factai-data_salvador
-
-    df = pd.DataFrame(data, columns=columnIndex, index=rowIndex)
-
-    dif_col_formatter = dict((col, '<b>{:+.2f}</b>') for col in df.columns if col[-1] == 'diff.')
-    styler = df.style.format(dif_col_formatter, na_rep='TBD', precision=2, escape="latex")
-    display(HTML(styler.to_html()))
-
-
-    caption = "Predictive equality: For two choices of global FPR compare the deviations in subgroup FPRs in terms of Average Absolute Deviation (AAD), Maximum Absolute Deviation (MAD), and Standard Deviation (STD). Comparing original results (Sal.) with ours. (Lower is better in all cases)"
-    dif_col_formatter = dict((col, '{:+.2f}') for col in df.columns if col[-1] == 'diff.')
-    styler = df.style.format(dif_col_formatter, na_rep='TBD', precision=2)
-    ncolblocks = len(columnIndex)//3
-
-    fname = os.path.join(EXPERIMENT_FOLDER, 'table_predictive_equality.tex' if full else 'table_predictive_equality_partial.tex')
-    print("Saving to",fname)
-    with open(fname, 'w') as f:
-        table = styler.to_latex(
-            None,
-            multicol_align='c|',
-            hrules=True,
-            column_format='llp{1.6cm}p{1.6cm}|'+('rrr|'*ncolblocks),
-            caption=caption,
-            label="tab:predictive-equality-full" if full else "tab:predictive-equality",
-            position_float='centering',
-            clines='skip-last;index',
-        )
-        table = table.replace(r"\cline", r"\cmidrule")
-        if resizebox:=True:
-            table = table.replace(r"\begin{tabular}", "\\resizebox{\columnwidth}{!}{\n\\begin{tabular}")
-            table = table.replace(r"\end{tabular}", "\\end{tabular}\n}")
-        f.write(table)
 
 gen_table_predictive_equality()
-
 gen_table_predictive_equality(full=False)
