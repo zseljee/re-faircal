@@ -52,7 +52,7 @@ def get_metrics(confidences: np.ndarray, dataset: Dataset, conf: Namespace) -> d
         for attribute in subgroup:
             for col in dataset.consts['sensitive_attributes'][attribute]['cols']:
                 select &= (df[col] == subgroup[attribute])
-            
+
         subgroup_key = '_'.join(subgroup.values())
 
         fpr, tpr, thr = roc_curve(y_true=ground_truth[select],
@@ -68,6 +68,15 @@ def get_metrics(confidences: np.ndarray, dataset: Dataset, conf: Namespace) -> d
         }
 
     return data
+
+def thr_at_fpr_from_score(score, ground_truth, target_fpr):
+    # Get metrics of uncalibrated scores
+    fpr, _, thr = roc_curve(y_true=ground_truth,
+                            y_score=score,
+                            drop_intermediate=False)
+
+    # Find the threshold at which the FPR is the pre-defined target FPR
+    return thr_at_fpr(thr, fpr, target_fpr)
 
 
 def thr_at_fpr(thr, fpr, target_fpr):
