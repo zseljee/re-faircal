@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
 import os
 import pandas as pd
@@ -7,33 +9,90 @@ import itertools
 from argparse import Namespace
 from collections import defaultdict
 from IPython.core.display import HTML, display_html as display
+from sklearn.metrics import roc_curve
 
 from approaches.utils import tpr_at_fpr
-from constants import EXPERIMENT_FOLDER
+from constants import EXPERIMENT_FOLDER, DATA_FOLDER
 from utils import get_experiment_folder
 
 teamName = 'FACT-AI'
+teamName = 'FACT-AI'
 
-configurations = configurations = {
+configurations = {
     'dataset': ['rfw', 'bfw'],
     'feature': ['facenet', 'facenet-webface'],
-    'approach': ['baseline', 'faircal', 'oracle', 'fsn'],
+    'approach': ['uncalibrated', 'baseline', 'faircal', 'oracle', 'fsn'],
 }
 skip_configurations = {
     ('bfw', 'facenet'),
     ('bfw', 'facenet', 'baseline'),
+    ('bfw', 'facenet', 'fsn'),
     ('bfw', 'facenet', 'faircal'),
     ('bfw', 'facenet', 'oracle'),
-    ('bfw', 'facenet', 'fsn'),
     ('0.1\% FPR', 'bfw', 'facenet'),
     ('1.0\% FPR', 'bfw', 'facenet'),
 }
 
 
+def aad(values):
+    values = np.array(values)
+    mean = values.mean()
+    return np.abs( values - mean ).mean()
+
+def mad(values):
+    values = np.array(values)
+    mean = values.mean()
+    return np.abs( values - mean ).max()
+
+def get_metrics_fold(results):
+    # ! In percentages!
+    tpr = 100.*results['Global']['tpr']
+    fpr = 100.*results['Global']['fpr']
+    thr = results['Global']['thr']
+
+    assert all( np.diff(fpr) >= 0 )
+
+    # Thresholds for 0.1% and 1% global FPR
+    thr_1fpr = np.interp(1.0, fpr, thr)
+    thr_01fpr = np.interp(0.1, fpr, thr)
+
+    ks = []
+    fpr_1fpr = []
+    fpr_01fpr = []
+
+    for subgroup in results:
+        if subgroup == 'Global':
+            continue;
+
+        ks.append(100.*results[subgroup]['ks'])
+
+        fpr_subgroup = np.fmin(1.,results[subgroup]['fpr'])[::-1] *100. # ! In percentages!
+        thr_subgroup = np.fmin(1.,results[subgroup]['thr'])[::-1]
+
+        fpr_1fpr.append( np.interp(thr_1fpr, thr_subgroup, fpr_subgroup) )
+        fpr_01fpr.append( np.interp(thr_01fpr, thr_subgroup, fpr_subgroup) )
+
+    ks,fpr_1fpr,fpr_01fpr = map(np.array, [ks,fpr_1fpr,fpr_01fpr])
+
+    return {
+        'TPR @ 0.1\% FPR': np.interp(0.1, fpr, tpr),
+        'TPR @ 1.0\% FPR': np.interp(1.0, fpr, tpr),
+
+        'KS - Mean': ks.mean(),
+        'KS - AAD': aad( ks ),
+        'KS - MAD': mad( ks ),
+        'KS - STD': np.std( ks ),
+
+        'FPR @ 0.1\% global FPR - AAD': aad( fpr_01fpr ),
+        'FPR @ 0.1\% global FPR - MAD': mad( fpr_01fpr ),
+        'FPR @ 0.1\% global FPR - STD': np.std( fpr_01fpr ),
+
+        'FPR @ 1.0\% global FPR - AAD': aad( fpr_1fpr ),
+        'FPR @ 1.0\% global FPR - MAD': mad( fpr_1fpr ),
+        'FPR @ 1.0\% global FPR - STD': np.std( fpr_1fpr ),
+    }
+
 def get_metrics():
-    """Create a dictionary with information for all configurations.
-    Used to generate the Tables.
-    """
     data = dict()
 
     for conf in itertools.product(*configurations.values()):
@@ -50,62 +109,18 @@ def get_metrics():
             with open(fname, 'rb') as f:
                 results = pickle.load(f)
 
-            _avgLists = defaultdict(list)
-            # for fold in results:
+            metrics_per_fold = defaultdict(list)
             for fold in ['fold1', 'fold2', 'fold3', 'fold4', 'fold5']:
-                tpr = results[fold]['metrics']['Global']['tpr']
-                fpr = results[fold]['metrics']['Global']['fpr']
-                thr = results[fold]['metrics']['Global']['thr']
 
-                # KS_list = 100.*np.array([results[fold]['metrics'][subgroup]['ks'] for subgroup in results[fold]['metrics'] if subgroup != "Global"])
-                KS_list = 100.*np.array([results[fold]['metrics'][subgroup]['ks'] for subgroup in results[fold]['metrics']])
-                # print([subgroup for subgroup in results[fold]['metrics']])
-                KS_mean = np.mean(KS_list)
+                metrics_fold = get_metrics_fold( results[fold]['metrics'] )
+                for metric in metrics_fold:
+                    metrics_per_fold[metric].append( metrics_fold[metric] )
 
-                # Threshold at which the global FPR is 0.1%
-                thr_at_globalfpr_001 = np.interp(0.001, fpr, thr)
-                # Threshold at which the global FPR is 1.0%
-                thr_at_globalfpr_01 = np.interp(0.01, fpr, thr)
+            # Average over each fold
+            for metric in metrics_per_fold:
+                data[conf][metric] = np.mean( metrics_per_fold[metric] )
 
-                # Now collect results for each subgroup
-                fpr_at_globalfpr_001 = []
-                fpr_at_globalfpr_01 = []
-                for subgroup in results[fold]['metrics']:
-                    if subgroup == 'Global': continue;
-
-                    fpr_subgroup = np.fmin(results[fold]['metrics'][subgroup]['fpr'],1.)
-                    thr_subgroup = np.fmin(results[fold]['metrics'][subgroup]['thr'],1.)
-
-                    # What is the FPR for the global threshold set above?
-                    fpr_at_globalfpr_001.append( np.interp(thr_at_globalfpr_001, thr_subgroup[::-1], fpr_subgroup[::-1]) )
-                    fpr_at_globalfpr_01.append( np.interp(thr_at_globalfpr_01, thr_subgroup[::-1], fpr_subgroup[::-1]) )
-
-                fpr_at_globalfpr_001 = 100.*np.array(fpr_at_globalfpr_001)
-                fpr_at_globalfpr_01 = 100.*np.array(fpr_at_globalfpr_01)
-
-                fpr_001_mean = np.mean(fpr_at_globalfpr_001)
-                fpr_01_mean = np.mean(fpr_at_globalfpr_01)
-
-                # Add all metrics to the list for this fold
-                _avgLists['TPR @ 0.1\% FPR'].append( 100.*tpr_at_fpr(tpr, fpr, .001) )
-                _avgLists['TPR @ 1.0\% FPR'].append( 100.*tpr_at_fpr(tpr, fpr, .01) )
-
-                _avgLists['KS - Mean'].append( KS_mean )
-                _avgLists['KS - AAD'].append( np.mean( np.abs( KS_list - KS_mean ) ) )
-                _avgLists['KS - MAD'].append( np.max( np.abs( KS_list - KS_mean ) ) )
-                # print(conf, np.abs( KS_list - KS_mean ) )
-                _avgLists['KS - STD'].append( np.std( KS_list ) )
-
-                _avgLists['FPR @ 0.1\% global FPR - AAD'].append( np.mean( np.abs( fpr_at_globalfpr_001 - fpr_001_mean ) ) )
-                _avgLists['FPR @ 0.1\% global FPR - MAD'].append( np.max( np.abs( fpr_at_globalfpr_001 - fpr_001_mean ) ) )
-                _avgLists['FPR @ 0.1\% global FPR - STD'].append( np.std( fpr_at_globalfpr_001 ) )
-
-                _avgLists['FPR @ 1.0\% global FPR - AAD'].append( np.mean( np.abs( fpr_at_globalfpr_01 - fpr_01_mean ) ) )
-                _avgLists['FPR @ 1.0\% global FPR - MAD'].append( np.max( np.abs( fpr_at_globalfpr_01 - fpr_01_mean ) ) )
-                _avgLists['FPR @ 1.0\% global FPR - STD'].append( np.std( fpr_at_globalfpr_01 ) )
-
-            for metric in _avgLists:
-                data[conf][metric] = np.mean(_avgLists[metric])
+            data[conf]['score'] = np.vstack([results[fold]['scores'] for fold in ['fold1', 'fold2', 'fold3', 'fold4', 'fold5']])
         else:
             print("Could not load experiment",_conf)
             print("Please save results at",fname)
@@ -114,7 +129,7 @@ def get_metrics():
 metrics = get_metrics()
 
 
-if True:
+if False:
     for conf in metrics:
         print(conf)
         for metric in metrics[conf]:
@@ -132,9 +147,9 @@ def rename(val):
     renamer['facenet'] = '\pbox{1.8cm}{FaceNet\\break(VGGFace2)}'
     renamer['facenet-webface'] = '\pbox{1.8cm}{FaceNet\\break(WebFace)}'
     renamer['baseline'] = 'Baseline'
+    renamer['fsn'] = 'FSN'
     renamer['faircal'] = 'FairCal'
     renamer['oracle'] = 'Oracle'
-    renamer['fsn'] = 'FSN'
     renamer['dataset'] = 'Dataset'
     renamer['by'] = 'By'
     renamer['metric'] = 'Metric'
@@ -172,7 +187,7 @@ def fill_data(data_salvador, rows, metric_names, metrics_dict, metric_to_idx: di
     """
     # Meta-information setup
     columns = {
-        'approach': ['baseline', 'faircal', 'oracle', 'fsn'],
+        'approach': ['baseline', 'fsn', 'faircal', 'oracle'],
         'by': ['Salvador', teamName, 'diff.'],
     }
     columnIndex, rowIndex = dictsToIndex(columns, rows)
@@ -237,9 +252,9 @@ def gen_table_accuracy():
     # Data from Table 2 in Salvador (2022), excluding AUROC columns (order is kept)
     data_salvador = np.array([
         [18.42, 34.88,  11.18, 26.04,  33.61, 58.87,  ], # Baseline
+        [23.01, 40.21,  17.33, 32.80,  47.11, 68.92,  ], # FSN
         [23.55, 41.88,  20.64, 33.13,  46.74, 69.21,  ], # FairCal
         [21.40, 41.83,  16.71, 31.60,  45.13, 67.56,  ], # Oracle
-        [23.01, 40.21,  17.33, 32.80,  47.11, 68.92,  ], # FSN
     ]).T # <-- ! Note the transpose!
 
     metric_names = ['0.1\% FPR', '1.0\% FPR']
@@ -272,9 +287,9 @@ def gen_table_fairness(full=True):
     # Data from Table 3 in Salvador (2022)
     data_salvador = np.array([
         [6.37, 2.89, 5.73, 3.77, 5.55, 2.48, 4.97, 2.91, 6.77, 3.63, 5.96, 4.03, ], # Baseline
+        [1.43, 0.35, 0.57, 0.40, 2.49, 0.84, 1.19, 0.91, 2.76, 1.38, 2.67, 1.60, ], # FSN
         [1.37, 0.28, 0.50, 0.34, 1.75, 0.41, 0.64, 0.45, 3.09, 1.34, 2.48, 1.55, ], # FairCal
         [1.18, 0.28, 0.53, 0.33, 1.35, 0.38, 0.66, 0.43, 2.23, 1.15, 2.63, 1.40, ], # Oracle
-        [1.43, 0.35, 0.57, 0.40, 2.49, 0.84, 1.19, 0.91, 2.76, 1.38, 2.67, 1.60, ], # FSN
     ]).T # <-- ! Note the Transpose
     if not full:
         data_salvador = data_salvador[[0, 3, 4, 7, 8, 11]]
@@ -318,9 +333,9 @@ def gen_table_predictive_equality(full=True):
     # Data from Table 4 in Salvador (2022)
     data_salvador = np.array([
         [0.10, 0.15, 0.10,  0.14, 0.26, 0.16,  0.29, 1.00, 0.40,   0.68, 1.02, 0.74,  0.67, 1.23, 0.79,  2.42, 7.48, 3.22, ], # Baseline
+        [0.10, 0.18, 0.11,  0.11, 0.23, 0.13,  0.09, 0.20, 0.11,   0.37, 0.68, 0.46,  0.35, 0.61, 0.40,  0.87, 2.19, 1.05, ], # FSN
         [0.09, 0.14, 0.10,  0.09, 0.16, 0.10,  0.09, 0.20, 0.11,   0.28, 0.46, 0.32,  0.29, 0.57, 0.35,  0.80, 1.79, 0.95,], # FairCal
         [0.11, 0.19, 0.12,  0.11, 0.20, 0.13,  0.12, 0.25, 0.15,   0.40, 0.69, 0.45,  0.41, 0.74, 0.48,  0.77, 1.71, 0.91, ], # Oracle
-        [0.10, 0.18, 0.11,  0.11, 0.23, 0.13,  0.09, 0.20, 0.11,   0.37, 0.68, 0.46,  0.35, 0.61, 0.40,  0.87, 2.19, 1.05, ], # FSN
     ]).T # <-- ! Note the transpose
     if not full:
         data_salvador = data_salvador[[2, 5, 8, 11, 14, 17]]
@@ -359,3 +374,136 @@ def gen_table_predictive_equality(full=True):
 
 gen_table_predictive_equality()
 gen_table_predictive_equality(full=False)
+
+
+def gen_plot_scores():
+    subgroups = ['African', 'Asian', 'Caucasian', 'Indian']
+
+    dataset = 'rfw'
+    approaches = ['uncalibrated', 'baseline', 'fsn', 'oracle', 'faircal']
+    feature = 'facenet-webface'
+    _df = pd.read_csv( os.path.join(DATA_FOLDER, dataset, f'{dataset}.csv') )
+
+    fig, axs = plt.subplots(1,len(approaches), squeeze=False, figsize=(20,5))
+    axs = axs.flatten()
+    for ax,approach in zip(axs, approaches):
+        conf = (dataset, feature, approach)
+        all_scores = metrics[conf]['score']
+
+        calibrated_score = np.full(len(_df), np.nan)
+        for fold in range(1,6):
+            select = _df['fold'] == fold
+            calibrated_score[select] = all_scores[fold-1,select]
+
+        _df['calibrated_score'] = all_scores[-1,:]
+        df = _df.dropna(subset=['calibrated_score'])
+
+        sns.violinplot(
+            x ='ethnicity',
+            hue="pair",
+            y='calibrated_score',
+            split=True,
+            data=df,
+            scale="count",
+            inner="quartile",
+            order=subgroups,
+            palette={"Genuine": "royalblue", "Imposter": "skyblue"},
+            ax=ax,
+        )
+
+        fpr, tpr, thr = roc_curve(y_true=df['same'],
+                                y_score=df['calibrated_score'],
+                                drop_intermediate=False)
+        ax.axhline(
+            y=np.interp(.05, fpr, thr),
+            ls='-', c='black', lw=2, alpha=1.)
+
+        for j,attr in enumerate(subgroups):
+            select = (df['ethnicity'] == attr)
+
+            fpr, tpr, thr = roc_curve(
+                y_true=df['same'][select],
+                y_score=df['calibrated_score'][select],
+                drop_intermediate=False)
+
+            ax.hlines(
+                y=np.interp(.05, fpr, thr),
+                xmin=j-.5,
+                xmax=j+.5,
+                lw=3, ls='-', color='crimson')
+
+        ax.set_title(approach)
+        ax.legend(loc='lower right')
+
+    plt.show()
+
+gen_plot_scores()
+
+
+def gen_plot_fpr():
+
+
+    dataset = 'rfw'
+    approaches = ['baseline', 'fsn', 'faircal', 'oracle']
+    feature = 'facenet-webface'
+    _df = pd.read_csv( os.path.join(DATA_FOLDER, dataset, f'{dataset}.csv') )
+
+    if dataset == 'rfw':
+        subgroups = ['African', 'Asian', 'Indian', 'Caucasian']
+    else:
+        subgroups = ['B', 'A', 'W', 'I']
+
+    fig, axs = plt.subplots(1,4, squeeze=False, figsize=(20,5))
+    axs = axs.flatten()
+    for ax,approach in zip(axs, approaches):
+
+        conf = (dataset, feature, approach)
+        all_scores = metrics[conf]['score']
+
+        # calibrated_score = np.full(len(_df), np.nan)
+        # for fold in range(1,6):
+        #     select = _df['fold'] == fold
+        #     calibrated_score[select] = all_scores[fold-1,select]
+
+        # _df['calibrated_score'] = all_scores[-1,:]
+        # df = _df.dropna(subset=['calibrated_score'])
+        _df['calibrated_score'] = all_scores[-1,:]
+        df = _df[ _df['fold'] == 5 ].copy()
+
+
+        fpr_glob, tpr_glob, thr_glob = roc_curve(
+            y_true=df['same'].astype(float),
+            y_score=df['calibrated_score'].astype(float),
+            drop_intermediate=False)
+
+        for j,attr in enumerate(subgroups):
+            if dataset == 'rfw':
+                select = (df['ethnicity'] == attr)
+            else:
+                select = (df['e1'] == attr) | (df['e2'] == attr)
+
+            fpr_sub, tpr_sub, thr_sub = roc_curve(
+                y_true=df['same'][select].astype(float),
+                y_score=df['calibrated_score'][select].astype(float),
+                drop_intermediate=False)
+
+            _fpr_glob = np.interp(thr_sub, thr_glob[::-1], fpr_glob[::-1])
+            ax.plot( _fpr_glob, fpr_sub, label=attr, lw=2 )
+
+        ax.plot([0.05, 0.05],[0,1],'--k',linewidth=2)
+
+        ax.legend(loc='upper left')
+        ax.set_title(approach)
+
+        ax.set_xlim(0.0, 0.1)
+        ax.set_xticks(np.linspace(0,.1,6))
+        ax.set_xlabel("Global FPR")
+
+        ax.set_ylim(0.0, 0.18)
+        ax.set_yticks(np.linspace(0,.15,4))
+
+    fig.suptitle(f"Subgroup FPR for a global threshold at 5% FPR, using feature {feature} and dataset {dataset}")
+
+    plt.show()
+
+gen_plot_fpr()
