@@ -222,14 +222,17 @@ class Dataset(object):
             if attribute in use_attributes:
                 attributes[attribute] = self.consts['sensitive_attributes'][attribute]['values']
 
+                # Yield a dictionary for this one attribute (ie 'Asian')
                 for value in attributes[attribute]:
                     yield {attribute: value}
 
-        # Now combine each value for each sensitive attribute with each other
-        for combination in itertools.product(*attributes.values()):
+        # If >1 attributes, yield all combinations (ie 'Asian' with 'Female')
+        if len(attributes) > 1:
+            # Now combine each value for each sensitive attribute with each other
+            for combination in itertools.product(*attributes.values()):
 
-            # Yield dict that maps column name to value in that column
-            yield dict(zip(attributes.keys(), combination))
+                # Yield dict that maps column name to value in that column
+                yield dict(zip(attributes.keys(), combination))
 
 
     def train_cluster(self, n_clusters:int=100, save=False):
