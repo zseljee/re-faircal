@@ -30,11 +30,9 @@ def gather_results(dataset: Dataset,
 
     for k in np.copy(dataset.folds):
         print(f"\nFold {k}", '~'*60)
-        dataset.set_fold(k)
-        dataset.select(None)
 
+        dataset.set_fold(k)
         calibrated_scores = APPROACHES[conf.approach](dataset=dataset, conf=conf)
-        dataset.select(None)
 
         data[f'fold{k}'] = {
             'scores': calibrated_scores,
@@ -83,7 +81,6 @@ def main():
             with open(saveto, 'rb') as f:
                 data = pickle.load(f, fix_imports=True)
 
-        dataset.select(None)
         print("\nExperiment finished, find results at", saveto)
         print(("="*80))
 
