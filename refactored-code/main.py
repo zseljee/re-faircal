@@ -1,7 +1,7 @@
 import os
-from typing import Any, Iterator
+import pickle
+import traceback
 from argparse import Namespace
-import itertools
 
 import numpy as np
 
@@ -9,73 +9,17 @@ from args import args
 from constants import *
 from dataset import Dataset
 
-from approaches import faircal, baseline
+from utils import iterate_configurations, get_experiment_folder
+from approaches import uncalibrated, baseline, faircal, oracle, fsn
+from approaches.utils import get_metrics
 
 APPROACHES = {
+    'uncalibrated': uncalibrated,
     'baseline': baseline,
-    'faircal': faircal
+    'faircal': faircal,
+    'oracle': oracle,
+    'fsn': fsn,
 }
-
-def iterate_configurations() -> Namespace:
-    """
-    Iterate options in args to yield configurations.
-    Prevents many 'for' loops in main
-
-    Yields Namespace with keys as defined below
-    """
-
-    # Keys used in returned Namespace
-    # ! Important! The order of 'keys' has to match with the order of 'values'
-    keys = ['dataset',
-            'n_cluster',
-            'fpr_thr',
-            'feature',
-            'approach',
-            'calibration_method',
-           ]
-
-    # List of lists of each value to try
-    # Ie values = [ ['A','B'], [1,2,3] ] will give A1, A2, A3, B1, B2, B3
-    values = [args.datasets,
-              args.n_clusters,
-              args.fpr_thrs,
-              args.features,
-              args.approaches,
-              args.calibration_methods,
-             ]
-    
-    # Make sure we can map each value in each of the lists with a key
-    assert len(keys) == len(values), "Cannot combine these names with these values!"
-
-    # Combine each item in each list in values with all other items
-    for conf in itertools.product(*values):
-
-        # Use the list of keys defined above to create a namespace
-        yield Namespace(
-            **dict(zip(keys, conf))
-        )
-
-
-def get_experiment_folder(conf: Namespace, makedirs: bool=False) -> str:
-    """
-    Given a configuration, return path to a folder to save
-    results for this configuration.
-
-    Parameters:
-        conf: Namespace - Configuration as namespace,
-                          as returned by iterate_configurations
-        makedirs: bool - Whether to create a folder, if not already exists
-    """
-    path = os.path.join(EXPERIMENT_FOLDER, 
-                        conf.dataset,
-                        conf.feature,
-                        conf.approach,
-                        conf.calibration_method
-                       )
-    if makedirs:
-        os.makedirs(path, exist_ok=True)
-
-    return path
 
 
 def gather_results(dataset: Dataset,
@@ -84,50 +28,64 @@ def gather_results(dataset: Dataset,
 
     data = {}
 
-    for k in dataset.folds:
+    for k in np.copy(dataset.folds):
         print(f"\nFold {k}", '~'*60)
+
         dataset.set_fold(k)
+        calibrated_scores = APPROACHES[conf.approach](dataset=dataset, conf=conf)
 
-        data[f'fold{k}'] = APPROACHES[conf.approach](dataset=dataset, conf=conf)
+        data[f'fold{k}'] = {
+            'scores': calibrated_scores,
+            'metrics': get_metrics(calibrated_scores, dataset, conf)
+        }
 
-
-        for subgroup in dataset.iterate_subgroups():
-            dataset.select_subgroup(**subgroup)
-            print(f"Using subgroup {subgroup}, containing {len(dataset)} pairs")
-
-            embeddings = dataset.get_embeddings(train=True)
-            print(f"Current subgroup has {embeddings.shape[0]} unique embeddings")
-        
-        break
-    
     return data
 
 
 def main():
+
+    os.makedirs(os.path.join(EXPERIMENT_FOLDER, 'kmeans'), exist_ok=True)
+
     # Try each configuration, as derived from args
-    for conf in iterate_configurations():
+    for conf in iterate_configurations(args):
+
         print("\n"+("="*80))
         print("Running on configuration", conf)
+
+        if (conf.dataset == 'rfw' and conf.feature == 'arcface')\
+        or (conf.dataset == 'bfw' and conf.feature == 'facenet'):
+            print("Skipping experiment! ArcFace cannot be combined with RFW and FaceNet(VGGFace2) cannot be combined with BFW.")
+            continue
 
         # Save results of the experiment in this folder
         exp_folder = get_experiment_folder(conf)
 
-        dataset = Dataset(dataset=conf.dataset, feature=conf.feature)
-        
+        dataset = Dataset(name=conf.dataset, feature=conf.feature)
+
         # Check if experiment is already run
         saveto = os.path.join( exp_folder, 'results.npy' )
-        print("Saving results to", saveto)
-        if os.path.isfile(saveto):
-            print("Results file already exists, skipping")
-            continue
-        
-        # np.save(saveto, {})
-        data = gather_results(dataset=dataset, conf=conf)
-        print("Experiment finished, results:")
-        print(data)
-        # np.save(saveto, data)
+        if not os.path.isfile(saveto) or args.ignore_existing:
+
+            try:
+                data = gather_results(dataset=dataset, conf=conf)
+
+                with open(saveto, 'wb') as f:
+                    pickle.dump(data, f)
+            except Exception as e:
+                data = None
+                print("ERROR, could not run experiment! It gives the following error:")
+                print(e)
+                traceback.print_exc(limit=None, file=None, chain=True)
+
+        else:
+            with open(saveto, 'rb') as f:
+                data = pickle.load(f, fix_imports=True)
+
+        print("\nExperiment finished, find results at", saveto)
+        print(("="*80))
+
     print("Done!")
-        
+
 
 if __name__ == '__main__':
     main()

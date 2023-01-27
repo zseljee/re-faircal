@@ -1,0 +1,26 @@
+# This is the CPU version, if you have a GPU, you probably want to use it and install the GPU environment!
+name: arcface
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  # onnxruntime requires python3.9 and nothing higher.
+  - python=3.9
+  - pip
+  - cpuonly
+  - pytorch
+  - torchvision
+  - onnx  # For ArcFace
+  - pip:
+    - facenet_pytorch
+    - ipywidgets
+    - jupyterlab
+    - matplotlib
+    - notebook
+    - onnxruntime
+    - pandas
+    - pillow
+    - scipy==1.9.3  # Because there is a problem with building 1.10 on Mac OSX Mojave (Zirk's computer)
+    - scikit-image
+    - tqdm

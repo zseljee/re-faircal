@@ -3,52 +3,51 @@ import argparse
 def parse() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
-    # TODO
-    # parser.add_argument(
-    #     "-v", "--verbose",
-    #     help="Provide extra information on what process is happening.  Can be stacked up to 4 times.",
-    #     action="count",
-    #     default=0,
-    # )
+    parser.add_argument(
+        '--ignore_existing',
+        help='Ignore existing experiment files (does not ignore KMeans files!)',
+        action='store_true',
+        default=False
+    )
 
     parser.add_argument(
-        '--datasets',
+        '--dataset',
         help='name(s) of dataset',
         type=str,
         nargs="+",
         choices=['rfw', 'bfw'],
-        default=['bfw',]
+        default=['rfw', 'bfw']
     )
 
     parser.add_argument(
-        '--features',
+        '--feature',
         help='features',
         type=str,
         nargs="+",
-        choices=['facenet', 'facenet-webface', 'arcface'],
-        default=['facenet', ],#'facenet-webface', 'arcface']
+        choices=['facenet', 'facenet-webface'],
+        default=['facenet', 'facenet-webface']
     )
 
     parser.add_argument(
-        '--approaches',
+        '--approach',
         help='approaches',
         type=str,
         nargs='+',
-        choices=['baseline', 'faircal', 'fsn', 'agenda', 'ftc', 'oracle'],
-        default=['baseline', ],#'faircal', 'fsn', 'agenda', 'ftc', 'oracle']
+        choices=['uncalibrated', 'baseline', 'oracle', 'faircal', 'fsn'],
+        default=['uncalibrated', 'baseline', 'oracle', 'faircal', 'fsn'],
     )
 
     parser.add_argument(
-        '--calibration_methods',
+        '--calibration_method',
         help='calibration methods',
         type=str,
         nargs='+',
-        choices=['beta', 'binning', 'isotonic_regression'],
-        default=['beta', ],#'binning', 'isotonic_regression'],
+        choices=['beta', ],
+        default=['beta', ],
     )
 
     parser.add_argument(
-        '--n_clusters',
+        '--n_cluster',
         help='Number of clusters for KMeans',
         type=int,
         nargs='+',
@@ -56,17 +55,16 @@ def parse() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        '--fpr_thrs',
-        help='FPR thresholds',
+        '--fpr_thr',
+        help='FPR used for FSN method',
         type=float,
-        nargs='+',
-        default=[1e-3,]
+        default=1e-3
     )
-    
+
     args = parser.parse_args()
 
     args = validate(args)
-    
+
     return args
 
 def validate(args: argparse.Namespace) -> argparse.Namespace:
