@@ -45,9 +45,39 @@ For creating the embeddings, there is a minor difference between using the immed
 python3 src/mtcnn_preprocess.py -v[vvv] --dataset all [BFW] [RFW] --steps MTCNN unrecognised --bfw_datafolder <path> --rfw_datafolder <path>
 ```
 
+### Filter the embeddings
+
+From the dataset created by the MTCNN, we can find out which pairs should be excluded from our training.  This step recreates the tables that are necessary with only information from the pairs that can be used.
+
+```sh
+python3 filter/filter_images.py
+```
+
 ### Creating the embeddings
 
-...
+This requires a file from the previous step, which requires also running the MTCNN on the RFW dataset.  Although we store the resulting crops, we do not use them, because we decided the direct output of the MTCNN would be more accurate than the output re-read from the stored `jpg` files due to the compression this does.
+
+```sh
+cd models
+python3 embed_preprocess.py
+cd ..
+```
+
+## Experiments
+
+The experiments can be run in their entirety once the embeddings have been created with the command below.  This specifically has to do the K-means clustering before it can do FairCal, but once the clusters have been created re-running the program gives the results quicker.
+
+```sh
+python3 refactored-code/main.py
+```
+
+## Results (Figures and Tables)
+
+To create figures and tables, you can run the final program:
+
+```sh
+python3 refactored-code/tables_and_figures.py
+```
 
 [data readme]: ./data/README.md
 [miniconda]: https://docs.conda.io/en/latest/miniconda.html
