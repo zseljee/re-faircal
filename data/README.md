@@ -54,7 +54,7 @@ Finally, it should be noted that there are 13 pairs of identical IDs that are sh
 
 ### CSV file
 
-[From](https://github.com/visionjo/facerec-bias-bfw/blob/master/data/README.md#data-structure)
+From [GitHub](https://github.com/visionjo/facerec-bias-bfw/blob/master/data/README.md#data-structure)
 | ID |  fold | p1  | p2  | label  | id1  | id2	| att1  | att2  | vgg16  | resnet50   | senet50   | a1   | a2   | g1   | g2 | e1   | e2   | sphereface   |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 0  | 1  |  asian\_females/n000009/0010\_01.jpg | asian\_females/n000009/0043\_01.jpg | 1     | 0   | 0   | asian\_females | asian\_females | 0.820 | 0.703 | 0.679 | AF | AF | F  | F  | A  | A  | 0.393   |
