@@ -56,8 +56,9 @@ for modelName in models:
         embeddings: "dict[str, np.ndarray]" = defaultdict(dict)
 
         # Iterate images
-        # LIMIT = None
-        LIMIT = 5_000
+        LIMIT = None
+        # LIMIT = 5_000
+        # LIMIT = 10
         if LIMIT is None:
             iterator = enumerate(dataset)
         else:

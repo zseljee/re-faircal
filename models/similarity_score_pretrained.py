@@ -46,21 +46,24 @@ for dataset_name, axrow in zip(dataset_names, axs):
 	for embedding_name, ax in zip(embedding_names, axrow):
 		embedding_path = os.path.join(DATA_FOLDER, dataset_name, '{}_embeddings.pickle'.format(embedding_name))
 		print("Embeddings from model {}, reading from {}".format(embedding_name, embedding_path))
-		with open(embedding_path, 'rb') as f:
-			embs: "dict[str, np.ndarray]" = pickle.load(f)
+		try:
+			with open(embedding_path, 'rb') as f:
+				embs: "dict[str, np.ndarray]" = pickle.load(f)
 
-			if 'full' in embs:
-				embs = embs['full']
+				if 'full' in embs:
+					embs = embs['full']
 
-			# Compute similarities
-			sims: pd.Series = df[ ['path1', 'path2'] ].apply(setup_cosine_sim(embs), axis=1 )
-			df[embedding_name] = sims
+				# Compute similarities
+				sims: pd.Series = df[ ['path1', 'path2'] ].apply(setup_cosine_sim(embs), axis=1 )
+				df[embedding_name] = sims
 
-			# Plot histogram
-			ax.hist( sims[df['same'] == False], color="red", label="Imposter", bins=100 )
-			ax.hist( sims[df['same'] == True], color="green", label="Genuine", bins=100 )
-			# ax.set_xlim(-1,1)
-			ax.set_title("Dataset {}, embeddings {}".format(dataset_name, embedding_name))
+				# Plot histogram
+				ax.hist( sims[df['same'] == False], color="red", label="Imposter", bins=100 )
+				ax.hist( sims[df['same'] == True], color="green", label="Genuine", bins=100 )
+				# ax.set_xlim(-1,1)
+				ax.set_title("Dataset {}, embeddings {}".format(dataset_name, embedding_name))
+		except FileNotFoundError:
+			print("No embeddings found, skipping...")
 
 	# Update csv file
 	df.to_csv(dataset_path, index=False)
