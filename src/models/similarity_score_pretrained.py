@@ -1,9 +1,8 @@
-import numpy as np
-import pandas as pd
-import os
-import pickle
-
 import matplotlib.pyplot as plt
+import numpy as np
+import os
+import pandas as pd
+import pickle
 
 DATA_FOLDER = os.path.abspath( './../data/' )
 
@@ -67,5 +66,7 @@ for dataset_name, axrow in zip(dataset_names, axs):
 
 	# Update csv file
 	df.to_csv(dataset_path, index=False)
+
+
 plt.savefig('results.png')
 plt.show()

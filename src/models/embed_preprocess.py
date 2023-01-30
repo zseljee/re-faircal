@@ -13,6 +13,7 @@ from facenet_pytorch import InceptionResnetV1, MTCNN
 from bfw import BFWImages
 from rfw import RFWImages
 from arcface import ArcFace
+from constants import ARCFACE_ONNX
 
 # Set up device
 device = torch.device( 'cuda' if torch.cuda.is_available() else 'cpu')
@@ -21,10 +22,10 @@ print("Using device:", device)
 # Load models to CPU
 print("Loading models...")
 models = {
-    # 'facenet': InceptionResnetV1(pretrained='vggface2').eval(),
-    # 'facenet-webface': InceptionResnetV1(pretrained='casia-webface').eval(),
+    'facenet': InceptionResnetV1(pretrained='vggface2').eval(),
+    'facenet-webface': InceptionResnetV1(pretrained='casia-webface').eval(),
     # TODO: Replace with link where the model is saved.
-    'arcface': ArcFace("../arcface_resnet100/amazon-resnet100.onnx"),
+    'arcface': ArcFace(ARCFACE_ONNX),
 }
 print("Available models:", ', '.join(models))
 
@@ -36,8 +37,8 @@ print("Setting up dataset...")
 datasets = {
     'bfw': BFWImages(data_root='../data/bfw/uncropped-face-samples/',
                      csv_file='../data/bfw/bfw-v0.1.5-datatable.csv'),
-    # 'rfw': RFWImages(data_root='../data/rfw/data/',
-    #                  csv_file='../data/rfw/txts/filtered_pairs.csv')
+    'rfw': RFWImages(data_root='../data/rfw/data/',
+                     csv_file='../data/rfw/txts/filtered_pairs.csv')
 }
 print("Available models:", ', '.join(datasets))
 

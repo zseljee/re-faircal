@@ -1,10 +1,16 @@
+"""This is a partial copy of the file of the code published by Salvador et.al.
+
+The code below is exactly the same as the file `calibration_methods.py` except
+that only the betacalibration method has been kept.
+"""
+
 import numpy as np
 
-# for BetaCalibration
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.utils import indexable, column_or_1d
 from scipy.optimize import minimize_scalar
 from sklearn.linear_model import LogisticRegression
+
 
 def normalize(score, score_min=-1, score_max=1):
     return (score-score_min)/(score_max-score_min)

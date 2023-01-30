@@ -3,6 +3,7 @@ import numpy as np
 from dataset import Dataset
 from argparse import Namespace
 
+
 def uncalibrated(dataset: Dataset, conf: Namespace) -> np.ndarray:
     """
     Dummy function to simulate an approach, while not doing anything.

@@ -27,3 +27,5 @@ OUTPUT_CSV = {
     'rfw': os.path.join( DATA_ROOT['rfw'], 'rfw.csv' ),
     'bfw': os.path.join( DATA_ROOT['bfw'], 'bfw.csv' ),
 }
+
+ARCFACE_ONNX = os.path.join(DATA_FOLDER, "../arcface_resnet100/amazon-resnet100.onnx")

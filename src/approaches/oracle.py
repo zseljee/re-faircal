@@ -1,10 +1,9 @@
-from sklearn.cluster import KMeans
 import numpy as np
 
 from argparse import Namespace
+from calibrationMethods import BetaCalibration
 from dataset import Dataset
 
-from calibrationMethods import BetaCalibration
 
 def oracle(dataset: Dataset, conf: Namespace) -> np.ndarray:
     """

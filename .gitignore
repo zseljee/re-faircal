@@ -1,7 +1,21 @@
+arcfaceresnet100-8.tar.gz
+arcface_resnet100/*
+
+Figure.png
+test.png
+
+environment_cpu_arcface_mxnet.yml
+
 *cluster*.png
 experiments/
+experiments-rerun/
+
 # Mac Thing
 .DS_Store
+
+### VS Code
+.vscode
+*/.vscode
 
 ### Everything below was pre-defined by GitHub for Python projects
 

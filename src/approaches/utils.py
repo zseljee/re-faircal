@@ -1,9 +1,10 @@
+import numpy as np
+
 from sklearn.metrics import roc_curve
 from argparse import Namespace
-import numpy as np
-import pandas as pd
 
 from dataset import Dataset
+
 
 def get_ks(confidences, ground_truth):
     n = len(ground_truth)
@@ -19,6 +20,7 @@ def get_brier(confidences, ground_truth):
     brier[np.logical_not(ground_truth)] = (confidences[np.logical_not(ground_truth)])**2
     brier = np.mean(brier)
     return brier
+
 
 def get_metrics(confidences: np.ndarray, dataset: Dataset, conf: Namespace) -> dict:
     data = dict()
@@ -68,6 +70,7 @@ def get_metrics(confidences: np.ndarray, dataset: Dataset, conf: Namespace) -> d
         }
 
     return data
+
 
 def thr_at_fpr_from_score(score, ground_truth, target_fpr):
     # Get metrics of uncalibrated scores

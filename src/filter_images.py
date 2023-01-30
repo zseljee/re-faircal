@@ -2,7 +2,6 @@ import os
 import pandas as pd
 
 
-
 def retreive_text_files(base_dir:str) -> list:
     """
         A function that searches for the text files in the data that
@@ -10,7 +9,7 @@ def retreive_text_files(base_dir:str) -> list:
         It assumes that the pairs text is in a structure like: 'European/European_pairs.txt'
 
         input:
-            base_dir = (string) the base directory of the data 
+            base_dir = (string) the base directory of the data
 
         output:
             file_name_lst = (list of strings) strings of the folder and text file name
@@ -26,7 +25,6 @@ def retreive_text_files(base_dir:str) -> list:
             file_name_lst.append(pair_filename)
 
     return file_name_lst
-
 
 
 def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str, unique_filenames:bool= False) -> any:
@@ -45,18 +43,18 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
                 filepath1: path to the image + image name of the first image
                 filepath2: path to the image + image name of the second image
                 label: label if the images are from the same person or not (1: True, 0: False)
-            
+
             optional:
                 set_filenames: (set) of filepaths + filename of all the filtered faces. To aid in the creation of embeddings
     """
     # create list of filenames of unrecognized faces for easy comparison
     with open(unrecognized_faces_filename) as unrecog_faces_file:
         unrecognized_faces_names_lst = [line.split('/')[-1][:-5] for line in unrecog_faces_file.readlines()] # remove ".jpg/n"
-    
+
     info_dict = {'id1': [],
                 'id2': [],
-                'path1': [], 
-                'path2':[], 
+                'path1': [],
+                'path2':[],
                 'label': [],
                 'fold': [],
                 'ethnicity': [],
@@ -85,7 +83,7 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
                     if not in_current_fold:
                         fold_nr += 1
                         in_current_fold = True
-                    facefile_names = [f'{striped_line[0]}_{int(striped_line[1]):04}', 
+                    facefile_names = [f'{striped_line[0]}_{int(striped_line[1]):04}',
                                       f'{striped_line[0]}_{int(striped_line[2]):04}']
                     label = 1
                     id1 = id2 = striped_line[0]
@@ -96,7 +94,7 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
                 # handle the case where pictures of two different persons are used
                 elif len(striped_line) == 4:
                     in_current_fold = False
-                    facefile_names = [f'{striped_line[0]}_{int(striped_line[1]):04}', 
+                    facefile_names = [f'{striped_line[0]}_{int(striped_line[1]):04}',
                                       f'{striped_line[2]}_{int(striped_line[3]):04}']
                     label = 0
                     id1 = striped_line[0]
@@ -108,15 +106,9 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
                 # catch edge cases
                 else:
                     raise Exception(f'line: {line} raised an exception!')
-                
+
                 # filter the images
                 if all(item not in unrecognized_faces_names_lst for item in facefile_names):
-
-#                     if id1 in ids and ids[id1] != ethnicity:
-#                         print(id1, ethnicity, ids[id1])
-# 
-#                     if id2 in ids and ids[id2] != ethnicity:
-#                         print(id2, ethnicity, ids[id2])
 
                     ids[id1] = ethnicity
                     ids[id2] = ethnicity
@@ -137,10 +129,8 @@ def read_files(base_dir:str, filename_list:list, unrecognized_faces_filename:str
                         set_filenames.add(face2_filepath)
                 else:
                     if facefile_names[0] not in unrecognized_faces_names_lst:
-                        # print("First is sad")
                         sad_faces.add(face1_filepath)
                     elif facefile_names[1] not in unrecognized_faces_names_lst:
-                        # print("Second is sad")
                         sad_faces.add(face2_filepath)
 
     print(len(sad_faces), len(sad_faces - set_filenames))
@@ -165,6 +155,7 @@ def test_files(info_dict,  set_filenames = None):
     assert not any('m.026p3wd_0004.jpg' in item for item in set_filenames)
     assert not any('m.044hmr_0003.jpg' in item for item in set_filenames)
 
+
 def main():
     BASE_DIR = 'data/rfw/txts'
 
@@ -177,7 +168,7 @@ def main():
         with open(BASE_DIR + '/unique_picture_links.txt', 'w') as f:
             for item in set_of_filenames:
                 f.write(item + '\n')
-    
+
     else:
         info_dict = output[0]
     df = pd.DataFrame({key: pd.Series(val) for key, val in info_dict.items()})

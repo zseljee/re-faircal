@@ -1,9 +1,10 @@
 import numpy as np
 
-from dataset import Dataset
 from argparse import Namespace
 
 from calibrationMethods import BetaCalibration
+from dataset import Dataset
+
 
 def baseline(dataset: Dataset, conf: Namespace) -> np.ndarray:
     """

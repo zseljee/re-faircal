@@ -15,11 +15,13 @@ git clone git@github.com:zseljee/re-faircal.git [optional diffferent foldername]
 cd <repo name OR custom foldername>
 ```
 
-Now that you have the code installed locally, install either the CPU or GPU based conda environments, whichever is appropriate for you system.  To install the environment, use:
+Now that you have the code installed locally, install either the CPU or GPU based conda environments, whichever is appropriate for you system.  The default name of this environment is `mlrc-faircal`, but you can specify a different name to use with the option `-n`.  To install the environment, use:
 
 ```sh
-conda env create -f environment_[c|g]pu.yml [-n fact-ai]  # The default name is fact-ai, change it with this?
+conda env create -f environment_<cpu|gpu>].yml [-n other-env-name]
 ```
+
+While we did not succeed in getting appropriate embeddings for the ArcFace model, we have a setup that supposedly creates the correct embeddings.  This requires the use of `mxnet`, which requires a lower version of Python.  For this reason, we added an additional environment in the file `environment_cpu_arcface.yml` that additionally installs an environment named `mlrc-faircal-arcface`.
 
 ## Data
 
@@ -39,7 +41,7 @@ Some of the preprocessing steps may be skipped, as they are only necessary for i
 
 ### Store MTCNN results
 
-For creating the embeddings, there is a minor difference between using the immediate output of the MTCNN network or first saving this as files and then loading these files.  You may also wish to store the MTCNN output for inspection.  The following command creates subdirectories in the same structure for each dataset with the cropped images.  Faces that aren't recognised will be missing in the new directory.  Specifically, the BFW dataset will be stored under `[data/bfw/]cropped-face-samples/` and RFW under `[data/rfw/]cropped_data`.
+For creating the embeddings, there is a minor difference between using the immediate output of the MTCNN network or first saving this as files and then loading these files.  You may also wish to store the MTCNN output for inspection.  The following command creates subdirectories in the same structure for each dataset with the cropped images.  Faces that aren't recognised will be missing in the new directory.  Specifically, the BFW dataset will be stored under `[data/bfw/]data_cropped/` and RFW under `[data/rfw/]data_cropped`.
 
 ```sh
 python3 src/mtcnn_preprocess.py -v[vvv] --dataset all [BFW] [RFW] --steps MTCNN unrecognised --bfw_datafolder <path> --rfw_datafolder <path>

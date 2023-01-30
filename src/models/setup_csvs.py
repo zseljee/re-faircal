@@ -1,8 +1,8 @@
-import numpy as np
-import pandas as pd
 import argparse
-import pickle
 import os
+import pandas as pd
+import pickle
+
 
 def collect_csv_bfw(args: argparse.Namespace) -> pd.DataFrame:
 	"""
@@ -27,7 +27,7 @@ def collect_csv_bfw(args: argparse.Namespace) -> pd.DataFrame:
 		'label': 'same'
 	}
 	df.rename(mapper=renames, axis='columns', inplace=True)
-	
+
 	# Set 'pair' column as either 'Genuine' or 'Imposter'
 	df['pair'] = df['same'].map(lambda x: 'Genuine' if x else 'Imposter')
 
@@ -42,11 +42,10 @@ def collect_csv_bfw(args: argparse.Namespace) -> pd.DataFrame:
 	for col in add:
 		df[col] = None
 
-
 	# Read embeddings to find what paths are available
 	with open(args.embeddings_path_bfw, 'rb') as f:
 		embeddings = pickle.load(f)
-	
+
 	# Convert to set
 	embedded_paths = set( embeddings.keys() )
 	print("Found {} embedded paths".format(len(embedded_paths)))
@@ -59,6 +58,7 @@ def collect_csv_bfw(args: argparse.Namespace) -> pd.DataFrame:
 	# Save output
 	print("Saving to", args.csv_path_bfw_out)
 	df.to_csv(path_or_buf=args.csv_path_bfw_out, index=False)
+
 
 def collect_csv_rfw(args: argparse.Namespace) -> pd.DataFrame:
 	"""
@@ -75,12 +75,6 @@ def collect_csv_rfw(args: argparse.Namespace) -> pd.DataFrame:
 	df = pd.read_csv(args.csv_path_rfw_in)
 	# id1,id2,path1,path2,label,fold,ethnicity,num1,num2
 
-	# Rename columns
-	# renames = {
-
-	# }
-	# df.rename(mapper=renames, axis='columns', inplace=True)
-	
 	# Set some columns
 	df['same'] = df['label'].astype(bool)
 	df['pair'] = df['same'].map(lambda x: 'Genuine' if x else 'Imposter')
@@ -95,7 +89,6 @@ def collect_csv_rfw(args: argparse.Namespace) -> pd.DataFrame:
 	print("Adding columns", add)
 	for col in add:
 		df[col] = None
-
 
 	# Read embeddings to see what paths are embedded
 	with open(args.embeddings_path_rfw, 'rb') as f:
@@ -163,6 +156,6 @@ if __name__ == '__main__':
 		setattr(args, keyword, path)
 		if not os.path.isfile(path):
 			raise ValueError("Parameter {} with path {} not found".format(keyword, path))
-	
+
 	collect_csv_bfw(args)
 	collect_csv_rfw(args)

@@ -1,12 +1,12 @@
-from sklearn.cluster import KMeans
-from sklearn.metrics import roc_curve
 import numpy as np
 
 from argparse import Namespace
-from dataset import Dataset
+from sklearn.cluster import KMeans
 
 from calibrationMethods import BetaCalibration
+from dataset import Dataset
 from .utils import thr_at_fpr_from_score
+
 
 def fsn(dataset: Dataset, conf: Namespace) -> np.ndarray:
     """

@@ -1,10 +1,11 @@
-from sklearn.cluster import KMeans
 import numpy as np
 
 from argparse import Namespace
-from dataset import Dataset
+from sklearn.cluster import KMeans
 
 from calibrationMethods import BetaCalibration
+from dataset import Dataset
+
 
 def faircal(dataset: Dataset, conf: Namespace) -> np.ndarray:
     """

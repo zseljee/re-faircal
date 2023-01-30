@@ -1,5 +1,6 @@
 # Pre-processing of data
-*Only available for BFW and RFW datasets*
+
+Pre-processing is *only available for BFW and RFW datasets*.
 
 ## Obtaining raw data
 
@@ -17,11 +18,13 @@ Installing this package should install the pre-trained models in the PyTorch cac
 ## Setting up for embedding
 
 ### BFW
+
 The BFW set already contains a convenient file (`bfw-v<version>-datatable.csv`) for getting image paths, which will be used throughout the pre-processing.
 In order to obtain the image paths, the set of the `path1` and `path2` columns is taken.
 
 ### RFW
-The RFW has a more complicated structure, where the information of all image pairs, file paths and folds is spread ocross several files.
+
+The RFW has a more complicated structure, where the information of all image pairs, file paths and folds is spread across several files.
 In order to parse this, the code in `gen_rfw_table.py` has been provided, which walks through the `txts` folder, looking for `txts/<set>/<set>_pairs.txt` files.
 These `pairs.txt` file contain the necessary information to generate a dataframe with the columns `id1`,`id2`,`path1`,`path2`,`label`,`fold`,`ethnicity`,`num1`,`num2`.
 
@@ -32,14 +35,15 @@ These `pairs.txt` file contain the necessary information to generate a dataframe
 * **ethnicity** is the ethnicity of this image pair, the BFW dataset contains only same-ethnicity pairs.
 * **num1**, **num2** indicates which image of the person has be used.
 
-
 ## Cropping Images
+
 After setting up the `.csv` files, the raw image files need to be cropped.
 A set of paths is taken using the now available dataframes, which are then opened and fed through a MTCNN model, as is common practice.
 This MTCNN uses default parameters, and saves images to a new folder for each dataset, as to save computation when embedding using multiple models.
 MTCNN might not detect all possible faces, so it is important to make sure to filter the list of paths between this step and the embeddings accordingly.
 
 ## Embedding Images
+
 Reading the now cropped images, embed any image that has been parsed by the MTCNN.
 In order to keep the mapping from path to embedding, save the results as a dictionary mapping paths to `np.ndarray`s.
 Finally, save the entire dictionary as a `.pickle` file, which will be read from in the main part of this project.

@@ -1,17 +1,11 @@
 import os
-from typing import Optional
-import tqdm
-
-import numpy as np
 import pandas as pd
-import pickle
-
-from skimage import io
-from PIL import Image
-
 import torch
+
+from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms import Compose
+from typing import Optional
 
 
 class RFWImages(Dataset):
@@ -81,8 +75,6 @@ class RFWImages(Dataset):
 
         # Use iloc if index is not reset, use loc to make idx unique across folds
         row = self.dataframe.iloc[idx]
-
-        # img = io.imread( os.path.join(self.data_root, row['path']) )
         img = Image.open( os.path.join(self.data_root, row['path']) )
 
         if self.transform:

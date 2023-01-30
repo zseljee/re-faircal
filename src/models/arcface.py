@@ -86,6 +86,7 @@ class ArcFace():
         return self
 
 
-# Utility function
+# Utility function, copied from the notebook
 def to_numpy(tensor):
+    # TODO: Can we not just always detach as it's a noop if requires_grad is false?
     return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
