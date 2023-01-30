@@ -24,7 +24,7 @@ models = {
     # 'facenet': InceptionResnetV1(pretrained='vggface2').eval(),
     # 'facenet-webface': InceptionResnetV1(pretrained='casia-webface').eval(),
     # TODO: Replace with link where the model is saved.
-    'arcface': ArcFace("../arcface_resnet100/resnet100.onnx"),
+    'arcface': ArcFace("../arcface_resnet100/amazon-resnet100.onnx"),
 }
 print("Available models:", ', '.join(models))
 
@@ -36,8 +36,8 @@ print("Setting up dataset...")
 datasets = {
     'bfw': BFWImages(data_root='../data/bfw/uncropped-face-samples/',
                      csv_file='../data/bfw/bfw-v0.1.5-datatable.csv'),
-    'rfw': RFWImages(data_root='../data/rfw/data/',
-                     csv_file='../data/rfw/txts/filtered_pairs.csv')
+    # 'rfw': RFWImages(data_root='../data/rfw/data/',
+    #                  csv_file='../data/rfw/txts/filtered_pairs.csv')
 }
 print("Available models:", ', '.join(datasets))
 
@@ -53,10 +53,17 @@ for modelName in models:
         dataset = datasets[datasetName]
 
         # Save embeddings here
-        embeddings: dict[str, np.ndarray] = defaultdict(dict)
+        embeddings: "dict[str, np.ndarray]" = defaultdict(dict)
 
         # Iterate images
-        for img, meta in tqdm.tqdm(dataset, ncols=100):
+        # LIMIT = None
+        LIMIT = 5_000
+        if LIMIT is None:
+            iterator = enumerate(dataset)
+        else:
+            iterator = zip(range(LIMIT), dataset)
+
+        for _i, (img, meta) in tqdm.tqdm(iterator, ncols=100):
 
             # Crop image using MTCNN
             cropped_img: torch.Tensor = mtcnn(img)
@@ -80,10 +87,11 @@ for modelName in models:
         # Save embeddings to pickle file
         for subset in embeddings:
             embeddings_subset = embeddings[subset]
+            save_at = "/".join(dataset.data_root.split("/")[:-1])
             if subset == 'full':
-                fname = os.path.join(dataset.data_root, f'{modelName}_embeddings.pickle')
+                fname = os.path.join(save_at, f'{modelName}_embeddings.pickle')
             else:
-                fname = os.path.join(dataset.data_root, f'{subset}_{modelName}_embeddings.pickle')
+                fname = os.path.join(save_at, f'{subset}_{modelName}_embeddings.pickle')
 
             print("Mapping path->embedding saved to", fname)
             with open(fname, 'wb') as file:

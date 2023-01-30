@@ -25,7 +25,7 @@ class BFWEmbeddings(Dataset):
         """
         TODO
         """
-        
+
         # Convert to global paths for interpretable printing
         data_root = os.path.abspath(data_root)
         csv_file = os.path.abspath(csv_file)
@@ -36,19 +36,19 @@ class BFWEmbeddings(Dataset):
         # Load presets from `model` parameter
         if model in {'facenet', 'facenet_webface'}:
             embeddings = os.path.join(self.data_root, f'{model}_embeddings.pickle')
-        
+
         # Unkown value for `model` parameter
         elif model is not None:
             raise ValueError(f"Unkown embedding model {model}")
-        
+
         # `embeddings` should either be set via the code above, or given as parameter
         if embeddings is None:
             raise ValueError("Either set `model` or `embeddings` parameter")
-        
+
         # Load embeddings as dict mapping path to np.ndarray
         with open(embeddings, 'rb') as f:
             self.embeddings: dict[str, np.ndarray] = pickle.load(f)
-        
+
         # Load all image pairs
         df = pd.read_csv( csv_file )
 
@@ -56,7 +56,7 @@ class BFWEmbeddings(Dataset):
         paths = set(self.embeddings.keys())
         mask = (df['path1'].isin(paths)) & (df['path2'].isin(paths))
         df = df[ mask ]
-        
+
         # Set up some pairs
         self.dataframes = {
             'full': df,
@@ -76,7 +76,7 @@ class BFWEmbeddings(Dataset):
         # Load it to first fold
         self.set_fold(self.folds[0])
 
-    
+
     def set_fold(self, k: int) -> None:
         """
         TODO
@@ -84,13 +84,13 @@ class BFWEmbeddings(Dataset):
         # Make sure provided fold exists
         if k not in self.folds:
             raise KeyError(f"Fold {k} not found in BFW dataset")
-        
+
         # Check if all is set already
         if k == self.current_fold:
             return
-        
+
         self.current_fold = k
-        
+
         mask = self.dataframes['full']['fold'] == k
 
         # Test dataframe is for given fold
@@ -104,25 +104,25 @@ class BFWEmbeddings(Dataset):
         self.dataset = 'train'
     def calibrate(self):
         self.train()
-    
+
 
     def test(self):
         self.dataset = 'test'
-    
+
 
     def __len__(self):
         """Give length of DataSet"""
         return len(self.dataframes[self.dataset])
 
-    
-    def __getitem__(self, idx: any) -> tuple[ np.ndarray, np.ndarray, int, dict[str, any] ]:
+
+    def __getitem__(self, idx: any) -> "tuple[ np.ndarray, np.ndarray, int, dict[str, any] ]":
         """
         Given some index, give embeddings and label corresponding to that pair
         TODO: Also return persion ID and sensitive attributes?
 
         Parameters:
             idx: Any - Index of the sample, ie what is passed to BFWEmbeddings[ ... ]
-        
+
         Returns:
             WIP
         """
@@ -131,7 +131,7 @@ class BFWEmbeddings(Dataset):
 
         # Use iloc if index is not reset, use loc to make idx unique across folds
         meta = self.dataframes[self.dataset].iloc[idx]
-        
+
         emb1 = self.embeddings[meta['p1']]
         emb2 = self.embeddings[meta['p2']]
 
@@ -152,14 +152,14 @@ class BFWImages(Dataset):
             csv_file: str - CSV file containing all information about the data (paths to images, labels, etc)
             transform: Optional[Compose] - Optionally add some transformations when reading data
         """
-        
+
         # Convert to global paths for interpretable printing
         data_root = os.path.abspath(data_root)
         csv_file = os.path.abspath(csv_file)
 
         # Save location of data
         self.data_root = data_root
-        
+
         # Open CSV as 'data', reading of images happesn in BFWFold
         df = pd.read_csv( csv_file )
 
@@ -190,19 +190,19 @@ class BFWImages(Dataset):
 
         self.transform = transform
 
-    
+
     def __len__(self):
         """Give length of DataSet"""
         return len(self.dataframe)
 
-    
+
     def __getitem__(self, idx):
         """
         Given some index, give images and label corresponding to that pair
 
         Parameters:
             idx: ? - Index of the sample TODO: what type is idx?
-        
+
         Returns:
             WIP
         """
