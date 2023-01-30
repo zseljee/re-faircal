@@ -1,0 +1,24 @@
+# Specified version numbers are likely needed to reproduce our results.
+name: mlrc-faircal
+channels:
+  - pytorch
+  - conda-forge
+  - nvidia
+  - defaults
+dependencies:
+  - python=3.10.*
+  - pip=22.3.*
+  - pytorch=1.13.*
+  - pytorch-cuda
+  - torchvision=0.14.*
+  - pip:
+    - facenet_pytorch==2.5.2
+    - matplotlib
+    - numpy
+    - pandas
+    - pillow
+    - seaborn
+    - scikit-image
+    - scikit-learn==1.2.1
+    - scipy>=1.9,<1.10  # Because there is a problem with building 1.10.0 on Mac OSX Mojave
+    - tqdm
