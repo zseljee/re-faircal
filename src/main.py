@@ -77,10 +77,6 @@ def main():
                 print(e)
                 traceback.print_exc(limit=None, file=None, chain=True)
 
-        else:
-            with open(saveto, 'rb') as f:
-                data = pickle.load(f, fix_imports=True)
-
         print("\nExperiment finished, find results at", saveto)
         print(("="*80))
 
