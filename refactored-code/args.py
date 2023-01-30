@@ -24,7 +24,7 @@ def parse() -> argparse.Namespace:
         help='features',
         type=str,
         nargs="+",
-        choices=['facenet', 'facenet-webface'],
+        choices=['facenet', 'facenet-webface', 'arcface'],
         default=['facenet', 'facenet-webface']
     )
 

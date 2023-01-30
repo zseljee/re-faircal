@@ -6,7 +6,7 @@ import pandas as pd
 import pickle
 import itertools
 
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from collections import defaultdict
 from IPython.core.display import HTML, display_html as display
 from sklearn.metrics import roc_curve
@@ -15,20 +15,35 @@ from approaches.utils import tpr_at_fpr
 from constants import EXPERIMENT_FOLDER, DATA_FOLDER
 from utils import get_experiment_folder
 
-teamName = 'FACT-AI'
+parser = ArgumentParser()
+parser.add_argument("--use-arcface", action="store_true")
+args = parser.parse_args()
+EXCLUDE_ARCFACE = not args.use_arcface
+del parser
+del args
+print("Ignoring non-existent ArcFace results" if EXCLUDE_ARCFACE else "Using results for ArcFace")
+
 teamName = 'FACT-AI'
 
 configurations = {
     'dataset': ['rfw', 'bfw'],
-    'feature': ['facenet', 'facenet-webface'],
+    'feature': ['facenet', 'facenet-webface', 'arcface'],
     'approach': ['uncalibrated', 'baseline', 'faircal', 'oracle', 'fsn'],
 }
 skip_configurations = {
+    # bfw-facenet
     ('bfw', 'facenet'),
     ('bfw', 'facenet', 'baseline'),
     ('bfw', 'facenet', 'fsn'),
     ('bfw', 'facenet', 'faircal'),
     ('bfw', 'facenet', 'oracle'),
+    # rfw-arcface
+    ('rfw', 'arcface'),
+    ('rfw', 'arcface', 'baseline'),
+    ('rfw', 'arcface', 'fsn'),
+    ('rfw', 'arcface', 'faircal'),
+    ('rfw', 'arcface', 'oracle'),
+    # other
     ('0.1\% FPR', 'bfw', 'facenet'),
     ('1.0\% FPR', 'bfw', 'facenet'),
 }
@@ -146,15 +161,17 @@ def rename(val):
     renamer['bfw'] = 'BFW'
     renamer['facenet'] = '\pbox{1.8cm}{FaceNet\\break(VGGFace2)}'
     renamer['facenet-webface'] = '\pbox{1.8cm}{FaceNet\\break(WebFace)}'
+    renamer['arcface'] = 'ArcFace'
     renamer['baseline'] = 'Baseline'
     renamer['fsn'] = 'FSN'
     renamer['faircal'] = 'FairCal'
     renamer['oracle'] = 'Oracle'
     renamer['dataset'] = 'Dataset'
-    renamer['by'] = 'By'
-    renamer['metric'] = 'Metric'
+    renamer['by'] = r'\hfill By \scriptsize $\rightarrow$'
+    renamer['metric'] = r'\hfill Metric \scriptsize $\downarrow$'
+    renamer['TPR @'] = r'\hfill TPR @ \scriptsize $\downarrow$'
     renamer['feature'] = 'Feature'
-    renamer['approach'] = 'Approach'
+    renamer['approach'] = r'\hfill Approach \scriptsize $\rightarrow$'
     renamer['threshold'] = 'Thr.'
     renamer['TPR @ 0.1\% FPR'] = 'TPR @ \\break0.1\% FPR'
     renamer['TPR @ 1.0\% FPR'] = 'TPR @ \\break1.0\% FPR'
@@ -171,7 +188,7 @@ def dictsToIndex(columns, rows):
     columnNames = rename(list(columns.keys()))
     columnIndex = pd.MultiIndex.from_tuples(columnTuples, names=columnNames)
 
-    rowTuples = filter(lambda T: not all(x in T for x in ['bfw','facenet']), itertools.product(*rows.values()) )
+    rowTuples = filter(lambda T: not all(x in T for x in ['bfw','facenet']) and not all(x in T for x in ['rfw','arcface']), itertools.product(*rows.values()) )
     rowTuples = rename(list(rowTuples))
 
     rowNames = rename(list(rows.keys()))
@@ -201,6 +218,9 @@ def fill_data(data_salvador, rows, metric_names, metrics_dict, metric_to_idx: di
         for j, approach in enumerate(columns['approach']):
             conf = (dataset, feature, approach)
             for key, offset in metric_to_idx.items():
+                # In case the code doesn't work by auto-returning 0 for non-existing results,
+                # uncomment the following line.  I wasn't able to test this.  (TODO)
+                # data_factai[i+offset, j] = metrics_dict[conf].get(key, float("nan"))
                 data_factai[i+offset, j] = metrics_dict[conf][key]
 
         i += len(metric_names)
@@ -211,6 +231,10 @@ def fill_data(data_salvador, rows, metric_names, metrics_dict, metric_to_idx: di
     data[:,1::3] = data_factai
     data[:,2::3] = data_factai - data_salvador
     df = pd.DataFrame(data, columns=columnIndex, index=rowIndex)
+
+    if EXCLUDE_ARCFACE:
+        arcface_rows = df.index.get_level_values("Feature") == "ArcFace"
+        df = df.iloc[~arcface_rows]
 
     return df
 
@@ -230,20 +254,34 @@ def show_and_write_table(table_df: pd.DataFrame, caption: str, label: str, save_
 
     fname = os.path.join(EXPERIMENT_FOLDER, save_as)
     print("Saving to",fname)
-    table_code = styler.to_latex(
+    table_code: str = styler.to_latex(
         None,
         multicol_align='c|',
         hrules=True,
-        column_format='l'*(table_df.index.nlevels - 2)+'p{1.6cm}p{1.6cm}|'+('rrr|'*ncolblocks),
+        column_format='l'*(table_df.index.nlevels - 2)+'p{1.6cm}p{1.9cm}|'+('rrr|'*ncolblocks),
         caption=caption,
         label=label,
         position_float='centering',
         clines='skip-last;index',
     )
+    # Some post-processing of the generated table
+    table_code: list[str] = table_code.split("\n")
+    last_cline = -1
+    for i, line in enumerate(table_code):
+        if line.startswith(r"\cline"):
+            last_cline = i
+            # Drop multiple clines, because that happens by default
+            cline_end = line.index("}")
+            table_code[i] = line[:cline_end + 1]
+    # Remove cline from bottom row, as there's a \bottomrule there
+    table_code.pop(last_cline)
+    table_code: str = "\n".join(table_code)
     table_code = table_code.replace(r"\cline", r"\cmidrule")
+    # Add box surrounding table to auto-fit to width of text
     if resizebox:=True:
         table_code = table_code.replace(r"\begin{tabular}", "\\resizebox{\columnwidth}{!}{\n\\begin{tabular}")
         table_code = table_code.replace(r"\end{tabular}", "\\end{tabular}\n}")
+    # Save table
     with open(fname, 'w') as f:
         f.write(table_code)
 
@@ -251,16 +289,16 @@ def show_and_write_table(table_df: pd.DataFrame, caption: str, label: str, save_
 def gen_table_accuracy():
     # Data from Table 2 in Salvador (2022), excluding AUROC columns (order is kept)
     data_salvador = np.array([
-        [18.42, 34.88,  11.18, 26.04,  33.61, 58.87,  ], # Baseline
-        [23.01, 40.21,  17.33, 32.80,  47.11, 68.92,  ], # FSN
-        [23.55, 41.88,  20.64, 33.13,  46.74, 69.21,  ], # FairCal
-        [21.40, 41.83,  16.71, 31.60,  45.13, 67.56,  ], # Oracle
+        [18.42, 34.88,  11.18, 26.04,  33.61, 58.87,  86.27, 90.11], # Baseline
+        [23.01, 40.21,  17.33, 32.80,  47.11, 68.92,  86.19, 90.06], # FSN
+        [23.55, 41.88,  20.64, 33.13,  46.74, 69.21,  86.28, 90.14], # FairCal
+        [21.40, 41.83,  16.71, 31.60,  45.13, 67.56,  86.41, 90.40], # Oracle
     ]).T # <-- ! Note the transpose!
 
     metric_names = ['0.1\% FPR', '1.0\% FPR']
     rows = {
         'dataset': ['rfw', 'bfw'],
-        'feature': ['facenet', 'facenet-webface'],
+        'feature': ['facenet', 'facenet-webface', 'arcface'],
         'TPR @ ': metric_names,
     }
 
@@ -286,18 +324,18 @@ def gen_table_fairness(full=True):
     """
     # Data from Table 3 in Salvador (2022)
     data_salvador = np.array([
-        [6.37, 2.89, 5.73, 3.77, 5.55, 2.48, 4.97, 2.91, 6.77, 3.63, 5.96, 4.03, ], # Baseline
-        [1.43, 0.35, 0.57, 0.40, 2.49, 0.84, 1.19, 0.91, 2.76, 1.38, 2.67, 1.60, ], # FSN
-        [1.37, 0.28, 0.50, 0.34, 1.75, 0.41, 0.64, 0.45, 3.09, 1.34, 2.48, 1.55, ], # FairCal
-        [1.18, 0.28, 0.53, 0.33, 1.35, 0.38, 0.66, 0.43, 2.23, 1.15, 2.63, 1.40, ], # Oracle
+        [6.37, 2.89, 5.73, 3.77,  5.55, 2.48, 4.97, 2.91,  6.77, 3.63, 5.96, 4.03,  2.57, 1.39, 2.94, 1.63], # Baseline
+        [1.43, 0.35, 0.57, 0.40,  2.49, 0.84, 1.19, 0.91,  2.76, 1.38, 2.67, 1.60,  2.65, 1.45, 3.23, 1.71], # FSN
+        [1.37, 0.28, 0.50, 0.34,  1.75, 0.41, 0.64, 0.45,  3.09, 1.34, 2.48, 1.55,  2.49, 1.30, 2.68, 1.52], # FairCal
+        [1.18, 0.28, 0.53, 0.33,  1.35, 0.38, 0.66, 0.43,  2.23, 1.15, 2.63, 1.40,  1.41, 0.59, 1.30, 0.69], # Oracle
     ]).T # <-- ! Note the Transpose
     if not full:
-        data_salvador = data_salvador[[0, 3, 4, 7, 8, 11]]
+        data_salvador = data_salvador[[0, 3, 4, 7, 8, 11, 12, 15]]
 
     metric_names = ['Mean', 'AAD', 'MAD', 'STD'] if full else ['Mean', 'STD']
     rows = {
         'dataset': ['rfw', 'bfw'],
-        'feature': ['facenet', 'facenet-webface'],
+        'feature': ['facenet', 'facenet-webface', 'arcface'],
         'metric': metric_names,
     }
 
@@ -316,8 +354,12 @@ def gen_table_fairness(full=True):
 
     df = fill_data(data_salvador, rows, metric_names, metrics, metrics_to_idx)
 
+    if full:
+        caption = "Fairness calibration measured by the mean KS across the sensitive subgroups. Showing the Mean, Average Absolute Deviation (AAD), Maximum Absolute Deviation (MAD) and Standard Deviation (STD). Comparing original results (Sal.) with ours. (Lower is better in all cases.)"
+    else:
+        caption = "Fairness calibration measured by the mean KS across the sensitive subgroups. Showing the Mean and Standard Deviation (STD). Comparing original results (Sal.) with ours. (Lower is better in all cases.)"
     show_and_write_table(df,
-                         caption = "Fairness calibration measured by the mean KS across the sensitive subgroups. Showing the Mean, Average Absolute Deviation (AAD), Maximum Absolute Deviation (MAD) and Standard Deviation (STD). Comparing original results (Sal.) with ours. (Lower is better in all cases)",
+                         caption = caption,
                          label="tab:fairness-full" if full else "tab:fairness",
                          save_as = 'table_fairness.tex' if full else 'table_fairness_partial.tex',
     )
@@ -332,19 +374,19 @@ def gen_table_predictive_equality(full=True):
     """
     # Data from Table 4 in Salvador (2022)
     data_salvador = np.array([
-        [0.10, 0.15, 0.10,  0.14, 0.26, 0.16,  0.29, 1.00, 0.40,   0.68, 1.02, 0.74,  0.67, 1.23, 0.79,  2.42, 7.48, 3.22, ], # Baseline
-        [0.10, 0.18, 0.11,  0.11, 0.23, 0.13,  0.09, 0.20, 0.11,   0.37, 0.68, 0.46,  0.35, 0.61, 0.40,  0.87, 2.19, 1.05, ], # FSN
-        [0.09, 0.14, 0.10,  0.09, 0.16, 0.10,  0.09, 0.20, 0.11,   0.28, 0.46, 0.32,  0.29, 0.57, 0.35,  0.80, 1.79, 0.95,], # FairCal
-        [0.11, 0.19, 0.12,  0.11, 0.20, 0.13,  0.12, 0.25, 0.15,   0.40, 0.69, 0.45,  0.41, 0.74, 0.48,  0.77, 1.71, 0.91, ], # Oracle
+        [0.10, 0.15, 0.10,  0.14, 0.26, 0.16,  0.29, 1.00, 0.40,  0.12, 0.30, 0.15,   0.68, 1.02, 0.74,  0.67, 1.23, 0.79,  2.42, 7.48, 3.22,  0.72, 1.51, 0.85], # Baseline
+        [0.10, 0.18, 0.11,  0.11, 0.23, 0.13,  0.09, 0.20, 0.11,  0.11, 0.28, 0.14,   0.37, 0.68, 0.46,  0.35, 0.61, 0.40,  0.87, 2.19, 1.05,  0.55, 1.27, 0.68], # FSN
+        [0.09, 0.14, 0.10,  0.09, 0.16, 0.10,  0.09, 0.20, 0.11,  0.11, 0.31, 0.15,   0.28, 0.46, 0.32,  0.29, 0.57, 0.35,  0.80, 1.79, 0.95,  0.63, 1.46, 0.78], # FairCal
+        [0.11, 0.19, 0.12,  0.11, 0.20, 0.13,  0.12, 0.25, 0.15,  0.12, 0.27, 0.14,   0.40, 0.69, 0.45,  0.41, 0.74, 0.48,  0.77, 1.71, 0.91,  0.83, 2.08, 1.07], # Oracle
     ]).T # <-- ! Note the transpose
     if not full:
-        data_salvador = data_salvador[[2, 5, 8, 11, 14, 17]]
+        data_salvador = data_salvador[[2, 5, 8, 11, 14, 17, 20, 23]]
 
     metric_names = ['AAD', 'MAD', 'STD'] if full else ['STD']
     rows = {
         'threshold': ['0.1\% FPR','1.0\% FPR'],
         'dataset': ['rfw', 'bfw'],
-        'feature': ['facenet', 'facenet-webface'],
+        'feature': ['facenet', 'facenet-webface', 'arcface'],
         'metric': metric_names,
     }
 
@@ -353,20 +395,24 @@ def gen_table_predictive_equality(full=True):
             'FPR @ 0.1\% global FPR - AAD': 0,
             'FPR @ 0.1\% global FPR - MAD': 1,
             'FPR @ 0.1\% global FPR - STD': 2,
-            'FPR @ 1.0\% global FPR - AAD': 9,
-            'FPR @ 1.0\% global FPR - MAD': 10,
-            'FPR @ 1.0\% global FPR - STD': 11,
+            'FPR @ 1.0\% global FPR - AAD': 12,
+            'FPR @ 1.0\% global FPR - MAD': 13,
+            'FPR @ 1.0\% global FPR - STD': 14,
         }
     else:
         metrics_to_idx = {
             'FPR @ 0.1\% global FPR - STD': 0,
-            'FPR @ 1.0\% global FPR - STD': 3,
+            'FPR @ 1.0\% global FPR - STD': 4,
         }
 
     df = fill_data(data_salvador, rows, metric_names, metrics, metrics_to_idx)
 
+    if full:
+        caption = "Predictive equality: For two choices of global FPR compare the deviations in subgroup FPRs in terms of Average Absolute Deviation (AAD), Maximum Absolute Deviation (MAD), and Standard Deviation (STD). Comparing original results (Sal.) with ours. (Lower is better in all cases.)"
+    else:
+        caption = "Predictive equality: For two choices of global FPR compare the deviations in subgroup FPRs in terms of Standard Deviation (STD). Comparing original results (Sal.) with ours. (Lower is better in all cases.)"
     show_and_write_table(df,
-                         caption="Predictive equality: For two choices of global FPR compare the deviations in subgroup FPRs in terms of Average Absolute Deviation (AAD), Maximum Absolute Deviation (MAD), and Standard Deviation (STD). Comparing original results (Sal.) with ours. (Lower is better in all cases)",
+                         caption=caption,
                          label="tab:predictive-equality-full" if full else "tab:predictive-equality",
                          save_as = 'table_predictive_equality.tex' if full else 'table_predictive_equality_partial.tex',
     )
