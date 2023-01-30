@@ -30,14 +30,6 @@ class Dataset(object):
         self.folds: np.ndarray = self._df['fold'].unique()
         self.fold: int|None = None
 
-        self.kmeans: KMeans|None = None
-        # load kmeans if exists
-        files = os.listdir(DATA_FOLDER)
-        if 'kmeans.pkl' in files:
-            with open(DATA_FOLDER + 'kmeans.pkl', 'rb') as f:
-                self.kmeans = pickle.load(f)
-                assert isinstance(self.kmeans, KMeans)
-
         if feature not in self._df.columns:
             s = f"Could not set up dataset {self.name} with feature {self.feature}"
             s+= f", please specify the column {self.feature} as similiarty score between embeddings."
