@@ -1,0 +1,26 @@
+# Specified version numbers are likely needed to reproduce our results.
+name: mlrc-faircal-arcface
+channels:
+  - pytorch
+  - conda-forge
+  - anaconda
+  - defaults
+dependencies:
+  - python=3.8.*
+  - pip=22.3.*
+  - cpuonly
+  - pytorch=1.13.*
+  - torchvision=0.14.*
+  - onnx
+  - pip:
+    - facenet_pytorch==2.5.2
+    - matplotlib
+    - mxnet
+    - numpy<1.24  # mxnet 1.9 cannot work with numpy 1.24 yet
+    - pandas
+    - pillow
+    - seaborn
+    - scikit-image
+    - scikit-learn==1.2.1
+    - scipy>=1.9,<1.10  # Because there is a problem with building 1.10.0 on Mac OSX Mojave
+    - tqdm

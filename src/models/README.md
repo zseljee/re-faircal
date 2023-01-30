@@ -3,7 +3,7 @@
 
 ## Obtaining raw data
 
-Please see the [data](../data/README.md) readme for information on obtaining the original data and file structures. This module assumes this file strucute is exactly as described there.
+Please see the [data](../../data/README.md) readme for information on obtaining the original data and file structures. This module assumes this file strucute is exactly as described there.
 
 Furthermore, please see the `constants.py` file as to where some files are expected to be read from or saved to.
 
