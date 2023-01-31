@@ -43,7 +43,7 @@ def gather_results(dataset: Dataset,
         dataset: Dataset - A Dataset instance with some number of folds
         conf: Namespace - A argparse.Namespace, just a fancy dictionary containing
         information on the current experiment, such as 'n_cluster'
-    
+
     Returns:
         data: dict[str, dict[str, any]]
     """

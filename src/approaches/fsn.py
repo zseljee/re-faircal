@@ -10,7 +10,7 @@ from .utils import thr_at_fpr_from_score
 
 def fsn(dataset: Dataset, conf: Namespace) -> np.ndarray:
     """
-    FSN approach - Use KMeans to obtain smaller, similar
+    FSN approach - Use K-means to obtain smaller, similar
     groups then shift these scores to match a global FPR threshold.
     Finally, use Beta Calibration to obtain a proper distribution.
 
@@ -30,12 +30,12 @@ def fsn(dataset: Dataset, conf: Namespace) -> np.ndarray:
     score_cal = df['score'][df['test'] == False].to_numpy(dtype='float')
     gt_cal = df['same'][df['test'] == False].to_numpy(dtype='int')
 
-    # Get KMeans instance from dataset for the provided number of clusters
-    print("Training using KMeans...")
+    # Get K-means instance from dataset for the provided number of clusters
+    print("Training using K-means...")
     kmeans: KMeans = dataset.train_cluster(n_clusters=conf.n_cluster, save=True)
 
     # Get embeddings from dataset, together with mapper
-    print("Predicting using KMeans...")
+    print("Predicting using K-means...")
     embeddings, idx2path = dataset.get_embeddings(train=None, return_mapper=True)
     path2embidx = dict((path,i) for i,path in enumerate(idx2path))
 

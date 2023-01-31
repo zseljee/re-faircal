@@ -6,7 +6,7 @@ def retreive_text_files(base_dir:str) -> list:
     """
         A function that searches for the text files in the data that
         contain the pair information between the pictures
-        It assumes that the pairs text is in a structure like: 'European/European_pairs.txt'
+        It assumes that the pairs text is in a structure like: 'African/African_pairs.txt'
 
         input:
             base_dir = (string) the base directory of the data

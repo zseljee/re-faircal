@@ -200,10 +200,10 @@ class Dataset(object):
 
         Parameters:
             use_attributes: str|Iterable[str]|None - A set of attributes to restrict to, use all if None
-        
+
         Yields:
             dict[str, any] - A dictionary mapping sensitive attributes to one of the values that attribute takes.
-        
+
         Example - iterating subgroups:
         >>> dataset = Dataset( name='bfw', feature='facenet' )
         >>> for subgroup in dataset.iterate_subgroups(use_attributes=['ethnicity', 'gender']):
@@ -231,7 +231,7 @@ class Dataset(object):
         ...         # Select the data where the obtained column takes the current attribute value
         ...         df = df[ df[column] == subgroup[attribute] ]
         """
-        
+
         # Convert use_attributes to a list of values
         if isinstance(use_attributes, str):
             # String to list

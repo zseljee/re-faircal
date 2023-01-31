@@ -28,7 +28,7 @@ def retreive_text_files(base_dir:str) -> list:
 
 
 
-def gen_df(base_dir:str) -> pd.DataFrame:
+def generate_rfw_df(base_dir:str) -> pd.DataFrame:
     """
         Function that uses one file of unrecognized faces to check the pairs of images in the other file.
 
@@ -106,7 +106,7 @@ def gen_df(base_dir:str) -> pd.DataFrame:
 
                 # catch edge cases
                 else:
-                    raise Exception(f'line: {line} raised an exception!')
+                    raise ValueError(f'line: `{line}` had an unexpected number of elements!')
 
                 info_dict['id1'].append(id1)
                 info_dict['id2'].append(id2)

@@ -9,7 +9,7 @@ from dataset import Dataset
 
 def faircal(dataset: Dataset, conf: Namespace) -> np.ndarray:
     """
-    Run the FairCal algorithm. It uses KMeans to set up a number of clusters,
+    Run the FairCal algorithm. It uses K-means to set up a number of clusters,
     it then sets up a BetaCalibration instance on each cluster, which is used
     to make a prediction on image pairs.
 
@@ -29,12 +29,12 @@ def faircal(dataset: Dataset, conf: Namespace) -> np.ndarray:
     df['test'] = df['fold'] == dataset.fold
     df['score'] = df[dataset.feature]
 
-    # Get KMeans instance from dataset for the provided number of clusters
-    print("Training using KMeans...")
+    # Get K-means instance from dataset for the provided number of clusters
+    print("Training using K-means...")
     kmeans: KMeans = dataset.train_cluster(n_clusters=conf.n_cluster, save=True)
 
     # Get embeddings from dataset, together with mapper
-    print("Predicting using KMeans...")
+    print("Predicting using K-means...")
     embeddings, idx2path = dataset.get_embeddings(train=None, return_mapper=True)
     path2embidx = dict((path,i) for i,path in enumerate(idx2path))
 

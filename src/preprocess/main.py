@@ -1,18 +1,21 @@
-from collections import defaultdict
 import numpy as np
-import pandas as pd
 import os
-import tqdm
+import pandas as pd
 import pickle
-from PIL import Image
-
 import torch
+import tqdm
+
+from argparse import Namespace
+from facenet_pytorch import InceptionResnetV1, MTCNN
+from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
-from facenet_pytorch import InceptionResnetV1, MTCNN
+# ArcFace is usually not available
+# TODO: uncomment if you use ArcFace
+# from arcface import ArcFace
 from constants import *
-from gen_rfw_table import gen_df
+from gen_rfw_table import generate_rfw_df
 
 
 device = torch.device( 'cuda' if torch.cuda.is_available() else 'cpu' )
@@ -137,7 +140,7 @@ def get_datasets() -> dict[str, pd.DataFrame]:
 
     print("Gathering metadata for RFW dataset...")
     # Fist generate RFW dataframe
-    df = gen_df(os.path.join(DATA_ROOT['rfw'], 'txts/'))
+    df = generate_rfw_df(os.path.join(DATA_ROOT['rfw'], 'txts/'))
 
     # Some stats
     print("\tFound {} image pairs across {} folds. Dataset has {}/{} pos/neg samples and contains ethnicities {}".format(
@@ -174,14 +177,14 @@ def get_datasets() -> dict[str, pd.DataFrame]:
     return datasets
 
 
-def get_models() -> dict[str, torch.nn.Module]:
+def get_models() -> dict[str, torch.nn.Module | "ArcFace"]:
     """
     Load models into a dictionary, assumes models are torch modules
     """
     return {
         'facenet': InceptionResnetV1(pretrained='vggface2').eval(),
         'facenet-webface': InceptionResnetV1(pretrained='casia-webface').eval(),
-        # TODO: Replace with link where the model is saved.
+        # TODO: Replace with path to where the model is saved.
         # 'arcface': ArcFace("../arcface_resnet100/resnet100.onnx"),
     }
 
@@ -377,7 +380,13 @@ def similarities(df: pd.DataFrame, embeddings: dict[str, np.ndarray]) -> pd.Seri
     return df[ ['path1', 'path2'] ].apply(cos_sim, axis=1 )
 
 
-if __name__ == '__main__':
+def check_preprocess(conf: Namespace):
+    """assert that embeddings exists, etc.
+    """
+    raise NotImplementedError()
+
+
+def main():
     # InceptionResnetV1 has a deprecated warning where a list of dictionaries is
     # converted to a `np.ndarray`, surpress these.
     np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
@@ -406,6 +415,7 @@ if __name__ == '__main__':
         if SKIP_CROP:
             # Whatever paths can be found in cropped image folder
             cropped_paths = [path for path in paths if os.path.isfile(os.path.join(CROPPED_IMAGE_ROOT[dataset], path))]
+            print("\tFound {}/{} existing cropped images".format(len(cropped_paths), len(paths)))
         else:
             # Crop images using MTCNN
             cropped_paths = crop(
@@ -417,13 +427,10 @@ if __name__ == '__main__':
                 batch_size=BATCH_SIZE,
                 resize=RESIZE
             )
-
-        print("\tCropped {}/{} images".format(len(cropped_paths), len(paths)))
+            print("\tCropped {}/{} images".format(len(cropped_paths), len(paths)))
 
         for modelName in models:
-
             print(f"\tEmbedding using {modelName} model...")
-
             model = models[modelName]
             embeddings = embed(
                 model=model,
@@ -432,7 +439,6 @@ if __name__ == '__main__':
                 pbar=DO_PBAR,
                 batch_size=BATCH_SIZE,
             )
-
             print("\t\tEmbedded {}/{} images".format(len(embeddings), len(paths)))
 
             # Save embeddings
@@ -462,3 +468,7 @@ if __name__ == '__main__':
         df.to_csv(OUTPUT_CSV[dataset], index=False)
 
     print("Done!")
+
+
+if __name__ == '__main__':
+    main()

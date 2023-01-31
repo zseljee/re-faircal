@@ -4,10 +4,9 @@ def parse() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        '--ignore_existing',
-        help='Ignore existing experiment files (does not ignore KMeans files!)',
+        '--ignore_existing', '--ignore-existing',
+        help='Ignore existing experiment files.  Does not ignore K-means files!',
         action='store_true',
-        default=False
     )
 
     parser.add_argument(
@@ -16,7 +15,7 @@ def parse() -> argparse.Namespace:
         type=str,
         nargs="+",
         choices=['rfw', 'bfw'],
-        default=['rfw', 'bfw']
+        default=['rfw', 'bfw'],
     )
 
     parser.add_argument(
@@ -25,7 +24,7 @@ def parse() -> argparse.Namespace:
         type=str,
         nargs="+",
         choices=['facenet', 'facenet-webface', 'arcface'],
-        default=['facenet', 'facenet-webface']
+        default=['facenet', 'facenet-webface'],
     )
 
     parser.add_argument(
@@ -38,7 +37,7 @@ def parse() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        '--calibration_method',
+        '--calibration_method', '--calibration-method',
         help='calibration methods',
         type=str,
         nargs='+',
@@ -47,18 +46,18 @@ def parse() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        '--n_cluster',
-        help='Number of clusters for KMeans',
+        '--n_clusters', '--n-clusters',
+        help='Number of clusters for K-means. ',
         type=int,
         nargs='+',
-        default=[100,]
+        default=[100,],
     )
 
     parser.add_argument(
-        '--fpr_thr',
+        '--fpr_thr', '--fpr-thr',
         help='FPR used for FSN method',
         type=float,
-        default=1e-3
+        default=1e-3,
     )
 
     args = parser.parse_args()
