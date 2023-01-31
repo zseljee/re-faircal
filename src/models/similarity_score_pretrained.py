@@ -2,30 +2,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
-import pickle
 
-DATA_FOLDER = os.path.abspath( './../data/' )
-
-def setup_cosine_sim(embs):
-	def cosine_sim(row):
-		if row['path1'] not in embs or row['path2'] not in embs:
-			return None
-
-		v1 = np.squeeze(embs[row['path1']])
-		v2 = np.squeeze(embs[row['path2']])
-		u1 = v1/np.linalg.norm(v1)
-		u2 = v2/np.linalg.norm(v2)
-
-		return np.dot(u1, u2)
-
-	return cosine_sim
+DATA_FOLDER = os.path.abspath( './data/' )
 
 # What datasets and embeddings to combine
 dataset_names = ['bfw', 'rfw' ]
 # dataset_names = ['bfw' ]
 embedding_names = ['facenet', 'facenet-webface', 'arcface']
 # embedding_names = ['facenet', 'arcface']
-print("Computing similarity scores")
+print("Comparing similarity scores")
 print("Datasets:", dataset_names)
 print("Embeddings:", embedding_names)
 
@@ -43,29 +28,16 @@ for dataset_name, axrow in zip(dataset_names, axs):
 
 	# Iterate embeddings
 	for embedding_name, ax in zip(embedding_names, axrow):
-		embedding_path = os.path.join(DATA_FOLDER, dataset_name, '{}_embeddings.pickle'.format(embedding_name))
-		print("Embeddings from model {}, reading from {}".format(embedding_name, embedding_path))
-		try:
-			with open(embedding_path, 'rb') as f:
-				embs: "dict[str, np.ndarray]" = pickle.load(f)
+		print("Embedding {}".format(embedding_name))
 
-				if 'full' in embs:
-					embs = embs['full']
+		# Get similarities
+		sims = df[embedding_name]
 
-				# Compute similarities
-				sims: pd.Series = df[ ['path1', 'path2'] ].apply(setup_cosine_sim(embs), axis=1 )
-				df[embedding_name] = sims
-
-				# Plot histogram
-				ax.hist( sims[df['same'] == False], color="red", label="Imposter", bins=100 )
-				ax.hist( sims[df['same'] == True], color="green", label="Genuine", bins=100 )
-				# ax.set_xlim(-1,1)
-				ax.set_title("Dataset {}, embeddings {}".format(dataset_name, embedding_name))
-		except FileNotFoundError:
-			print("No embeddings found, skipping...")
-
-	# Update csv file
-	df.to_csv(dataset_path, index=False)
+		# Plot histogram
+		ax.hist( sims[df['same'] == False], color="red", label="Imposter", bins=100 )
+		ax.hist( sims[df['same'] == True], color="green", label="Genuine", bins=100 )
+		# ax.set_xlim(-1,1)
+		ax.set_title("Dataset {}, embeddings {}".format(dataset_name, embedding_name))
 
 
 plt.savefig('results.png')

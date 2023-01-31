@@ -1,4 +1,3 @@
-# TODO: Combine `iterate_subgroups` and `select_subgroup` into `iterate_select_subgroup`?
 import os
 from typing import Any, Iterable
 import itertools
@@ -157,11 +156,7 @@ class Dataset(object):
         """
         Get a numpy array containing the embeddings of the dataset, where each embedding is saved as a row
         If a fold is set (ie `Dataset.fold is not None`), use the `train` parameter to choose between the training
-        or test data of the current fold. If no fold is set, `train` is ignored.
-
-        Embeddings use the current selection of data, using a different `Dataset.select` will (potentially) result
-        in different embeddings. The returned embeddings come from the set of paths of the current dataframe,
-        to get embedding pairs, see ... TODO
+        or test data of the current fold. If no fold is set, `train` parameter is ignored.
 
         Returned embeddings are a copy of the embeddings saved internally.
 
@@ -171,7 +166,7 @@ class Dataset(object):
 
         Returns:
             embeddings: np.ndarray
-            idx2path: np.ndarray - A 1D array containing paths, where the ith path is the path of the ith embedding
+            idx2path: np.ndarray - A 1D array containing paths, where the ith value is the path of the ith embedding
         """
         # Use current selection
         df = self.df.copy()
@@ -198,8 +193,45 @@ class Dataset(object):
 
     def iterate_subgroups(self, use_attributes: str|Iterable[str]|None = None) -> Iterable[ dict[str, Any] ]:
         """
+        Using the sensitive attributes in `self.consts['sensitive_attributes']`, yield dictionaries as combinations
+        of sensitive attributes. Setting `use_attributes` allows to only use a subset of sensitive attributes.
 
+        Also yields each combination of one attribute,value, see example below.
+
+        Parameters:
+            use_attributes: str|Iterable[str]|None - A set of attributes to restrict to, use all if None
+        
+        Yields:
+            dict[str, any] - A dictionary mapping sensitive attributes to one of the values that attribute takes.
+        
+        Example - iterating subgroups:
+        >>> dataset = Dataset( name='bfw', feature='facenet' )
+        >>> for subgroup in dataset.iterate_subgroups(use_attributes=['ethnicity', 'gender']):
+        ...     print(subgroup)
+        {'ethnicity': 'B'}
+        {'ethnicity': 'A'}
+        {'ethnicity': 'W'}
+        {'ethnicity': 'I'}
+        {'gender': 'F'}
+        {'gender': 'M'}
+        {'ethnicity': 'B', 'gender': 'F'}
+        {'ethnicity': 'B', 'gender': 'M'}
+        {'ethnicity': 'A', 'gender': 'F'}
+        {'ethnicity': 'A', 'gender': 'M'}
+        {'ethnicity': 'W', 'gender': 'F'}
+        {'ethnicity': 'W', 'gender': 'M'}
+        {'ethnicity': 'I', 'gender': 'F'}
+        {'ethnicity': 'I', 'gender': 'M'}
+
+        Example - selecting data for a subgroup:
+        >>> subgroup = {'ethnicity': 'B', 'gender': 'F'}
+        >>> for attribute in subgroup:
+        ...     # Obtain columns of this attribute, one for each image in the image pair
+        ...     for column in dataset.consts['sensitive_attributes'][attribute]['cols']:
+        ...         # Select the data where the obtained column takes the current attribute value
+        ...         df = df[ df[column] == subgroup[attribute] ]
         """
+        
         # Convert use_attributes to a list of values
         if isinstance(use_attributes, str):
             # String to list

@@ -24,7 +24,29 @@ APPROACHES = {
 
 def gather_results(dataset: Dataset,
                    conf: Namespace
-                  ) -> dict:
+                  ) -> dict[str, dict[str, any]]:
+    """
+    Given a dataset and some configuration, run an experiment on each fold
+    of the dataset.
+
+    This method iterates over the Dataset folds and calls the callable in
+    APPROACHES.
+
+    The output will be a dictionary containing keys 'fold{K}' with K being
+    each fold in the dataset. The values are again dictionaries, containing
+    the key 'scores' and 'metrics'. The former is a list/nd.ndarray of the same
+    length as the *entire* dataset, indicating the calibrated score. The latter
+    is another dictionary with metrics/meta data about the calibrated scores.
+    These keys/values can be found in `utils.get_metrics`.
+
+    Parameters:
+        dataset: Dataset - A Dataset instance with some number of folds
+        conf: Namespace - A argparse.Namespace, just a fancy dictionary containing
+        information on the current experiment, such as 'n_cluster'
+    
+    Returns:
+        data: dict[str, dict[str, any]]
+    """
 
     data = {}
 

@@ -13,6 +13,9 @@ def get_experiment_folder(conf: Namespace, makedirs: bool=True) -> str:
         conf: Namespace - Configuration as namespace,
                           as returned by iterate_configurations
         makedirs: bool - Whether to create a folder, if not already exists
+    
+    Returns:
+        path: str - A path to a folder for this experiment
     """
     path = os.path.join(EXPERIMENT_FOLDER,
                         conf.dataset,
@@ -28,10 +31,35 @@ def get_experiment_folder(conf: Namespace, makedirs: bool=True) -> str:
 
 def iterate_configurations(args: Namespace, keys: None|list[str]=None) -> Namespace:
     """
-    Iterate options in args to yield configurations.
-    Prevents many 'for' loops in main
+    Given a Namespace and a set of keys,
+    combine the values at each key in keys with each other.
+    This assumes that for each key `K`, `args.K` is a list of values,
+    these values can be any dtype.
 
-    Yields Namespace with keys as defined below
+    Any unused key is returned at each yield.
+
+    Will raise an AssertionError if a provided key does not have a list
+    as its corresponding value.
+
+    Usage:
+    >>> args = Namespace(key1=['a', 'b'], key2=[1,2,3], key3='Hello world!')
+    >>> keys = ['key1', 'key2']
+    >>> for conf in iterate_configurations(args, keys):
+    ...     print(conf)
+    Namespace(key1='a', key2=1, key3='Hello world!')
+    Namespace(key1='a', key2=2, key3='Hello world!')
+    Namespace(key1='a', key2=3, key3='Hello world!')
+    Namespace(key1='b', key2=1, key3='Hello world!')
+    Namespace(key1='b', key2=2, key3='Hello world!')
+    Namespace(key1='b', key2=3, key3='Hello world!')
+
+    Parameters:
+        args: Namespace
+        keys: None|list[str] - A list of keys to use, if set to None, use all keys.
+    
+    Returns:
+        conf: Namespace - A Namespace with the same keys as `args`
+    
     """
 
     # Keys used in returned Namespace
@@ -51,7 +79,6 @@ def iterate_configurations(args: Namespace, keys: None|list[str]=None) -> Namesp
     assert all(isinstance(val, list) for val in values), "Configuration contains non-list key"
 
     remainder = dict([(key, getattr(args, key)) for key in vars(args) if key not in keys])
-    print(remainder)
 
     # Now combine each item in each list of options in values with each other
     # Ie [[1,2], ['a', 'b']] gives (1,a), (1,b), (2,a), (2,b)
