@@ -31,7 +31,7 @@ def faircal(dataset: Dataset, conf: Namespace) -> np.ndarray:
 
     # Get K-means instance from dataset for the provided number of clusters
     print("Training using K-means...")
-    kmeans: KMeans = dataset.train_cluster(n_clusters=conf.n_cluster, save=True)
+    kmeans: KMeans = dataset.train_cluster(n_clusters=conf.n_clusters, save=True)
 
     # Get embeddings from dataset, together with mapper
     print("Predicting using K-means...")

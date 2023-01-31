@@ -4,18 +4,20 @@ import pandas as pd
 import pickle
 import torch
 import tqdm
+import warnings
 
 from argparse import Namespace
 from facenet_pytorch import InceptionResnetV1, MTCNN
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
+from typing import Callable, Optional
 
 # ArcFace is usually not available
 # TODO: uncomment if you use ArcFace
-# from arcface import ArcFace
-from constants import *
-from gen_rfw_table import generate_rfw_df
+# from .arcface import ArcFace
+from .constants import *
+from .gen_rfw_table import generate_rfw_df
 
 
 device = torch.device( 'cuda' if torch.cuda.is_available() else 'cpu' )
@@ -177,15 +179,20 @@ def get_datasets() -> dict[str, pd.DataFrame]:
     return datasets
 
 
-def get_models() -> dict[str, torch.nn.Module | "ArcFace"]:
+def get_models() -> dict[str, "torch.nn.Module | ArcFace"]:
     """
-    Load models into a dictionary, assumes models are torch modules
+    Load models into a dictionary, assumes models behave like torch modules
     """
+    return {model_name: model_factory() for model_name, model_factory in _get_models().items()}
+
+
+def _get_models() -> dict[str, Callable[[], "torch.nn.Module | ArcFace"]]:
+    """Same as get_models, but it doesn't instantiate the models immediately."""
     return {
-        'facenet': InceptionResnetV1(pretrained='vggface2').eval(),
-        'facenet-webface': InceptionResnetV1(pretrained='casia-webface').eval(),
+        'facenet': lambda: InceptionResnetV1(pretrained='vggface2').eval(),
+        'facenet-webface': lambda: InceptionResnetV1(pretrained='casia-webface').eval(),
         # TODO: Replace with path to where the model is saved.
-        # 'arcface': ArcFace("../arcface_resnet100/resnet100.onnx"),
+        # 'arcface': lambda: ArcFace("../arcface_resnet100/resnet100.onnx"),
     }
 
 
@@ -380,16 +387,36 @@ def similarities(df: pd.DataFrame, embeddings: dict[str, np.ndarray]) -> pd.Seri
     return df[ ['path1', 'path2'] ].apply(cos_sim, axis=1 )
 
 
-def check_preprocess(conf: Namespace):
+def check_preprocess(conf: Optional[Namespace] = None):
     """assert that embeddings exists, etc.
     """
-    raise NotImplementedError()
+    if conf is None:
+        datasets = ['rfw', 'bfw']
+        models = list(_get_models().keys())
+    else:
+        datasets = [conf.dataset]
+        models = [conf.feature]
+    print("Checking preprocessing for:", datasets, "and", models)
+
+    valid = True
+    for dataset in datasets:
+        # MTCNN cropped images
+        valid &= os.path.isdir(os.path.join(CROPPED_IMAGE_ROOT[dataset]))
+        # Embeddings
+        for model_name in models:
+            fname = os.path.join( EMBEDDING_FOLDER[dataset], EMBEDDING_FORMAT.format(model_name) )
+            valid &= os.path.isfile(fname)
+        # Results
+        valid &= os.path.isfile(OUTPUT_CSV[dataset])
+
+    print("Succes!" if valid else "Failed check!")
+    return valid
 
 
 def main():
     # InceptionResnetV1 has a deprecated warning where a list of dictionaries is
     # converted to a `np.ndarray`, surpress these.
-    np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
+    warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
 
     # Datasets
     datasets = get_datasets()
@@ -415,6 +442,7 @@ def main():
         if SKIP_CROP:
             # Whatever paths can be found in cropped image folder
             cropped_paths = [path for path in paths if os.path.isfile(os.path.join(CROPPED_IMAGE_ROOT[dataset], path))]
+            assert len(cropped_paths) > 0, "Make sure to create cropped images at least once!"
             print("\tFound {}/{} existing cropped images".format(len(cropped_paths), len(paths)))
         else:
             # Crop images using MTCNN

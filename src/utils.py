@@ -13,7 +13,7 @@ def get_experiment_folder(conf: Namespace, makedirs: bool=True) -> str:
         conf: Namespace - Configuration as namespace,
                           as returned by iterate_configurations
         makedirs: bool - Whether to create a folder, if not already exists
-    
+
     Returns:
         path: str - A path to a folder for this experiment
     """
@@ -56,16 +56,16 @@ def iterate_configurations(args: Namespace, keys: None|list[str]=None) -> Namesp
     Parameters:
         args: Namespace
         keys: None|list[str] - A list of keys to use, if set to None, use all keys.
-    
+
     Returns:
         conf: Namespace - A Namespace with the same keys as `args`
-    
+
     """
 
     # Keys used in returned Namespace
     if keys is None:
         keys = ['dataset',
-                'n_cluster',
+                'n_clusters',
                 'feature',
                 'approach',
                 'calibration_method',

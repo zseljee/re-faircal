@@ -10,6 +10,7 @@ from approaches.utils import get_metrics
 from args import args
 from constants import *
 from dataset import Dataset
+from preprocess import main as preprocess, check_preprocess
 from utils import iterate_configurations, get_experiment_folder
 
 
@@ -65,6 +66,18 @@ def gather_results(dataset: Dataset,
 
 
 def main():
+
+    if not check_preprocess():
+        print("Preprocessing isn't done, do you want to run it now?  [y]/n")
+        ans = input("> ").strip().lower()
+        if ans.startswith("y") or ans == "":
+            print("Alright, doing preprocessing!\n")
+            preprocess()
+        elif ans.startswith("n"):
+            print("Preprocessing is required to run")
+            return
+        else:
+            raise ValueError("Unknown answer...")
 
     os.makedirs(os.path.join(EXPERIMENT_FOLDER, 'kmeans'), exist_ok=True)
 
