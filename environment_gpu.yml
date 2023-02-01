@@ -14,7 +14,7 @@ dependencies:
   - pip:
     - facenet_pytorch==2.5.2
     - matplotlib
-    - numpy
+    - numpy<1.24  # facenet_pytorch mtcnn cannopt work with numpy 1.24 yet
     - pandas
     - pillow
     - seaborn
