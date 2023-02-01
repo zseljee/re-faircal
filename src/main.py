@@ -5,7 +5,7 @@ import traceback
 
 from argparse import Namespace
 
-from approaches import uncalibrated, baseline, faircal, oracle, fsn
+from approaches import uncalibrated, baseline, faircal, oracle, fsn, ftc
 from approaches.utils import get_metrics
 from args import args
 from constants import *
@@ -20,6 +20,7 @@ APPROACHES = {
     'faircal': faircal,
     'oracle': oracle,
     'fsn': fsn,
+    'ftc': ftc
 }
 
 

@@ -32,7 +32,7 @@ def parse() -> argparse.Namespace:
         help='approaches',
         type=str,
         nargs='+',
-        choices=['uncalibrated', 'baseline', 'oracle', 'faircal', 'fsn'],
+        choices=['uncalibrated', 'baseline', 'oracle', 'faircal', 'fsn', 'ftc'],
         default=['uncalibrated', 'baseline', 'oracle', 'faircal', 'fsn'],
     )
 
