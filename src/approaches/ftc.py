@@ -42,7 +42,6 @@ def ftc(dataset: Dataset, conf: Namespace) -> np.ndarray:
             model=model,
             device=device,
             loaders={'train': loader_train, 'test': loader_test},
-            epochs=10,
         )
         print(f"Test: loss={test_loss:.2e}, acc={acc:4.1f}%, fnr={fnr:.1f}")
         print("\nSaving model to", savepath)
