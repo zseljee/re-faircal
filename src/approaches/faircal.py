@@ -47,10 +47,10 @@ def faircal(dataset: Dataset, conf: Namespace) -> np.ndarray:
 
     # Set up calibrators for each of the clusters
     print("Setting up calibrators for each cluster...")
-    calibrators = [None]*conf.n_cluster
-    cluster_sizes = np.zeros(conf.n_cluster, dtype='int')
+    calibrators = [None]*conf.n_clusters
+    cluster_sizes = np.zeros(conf.n_clusters, dtype='int')
 
-    for cluster in range(conf.n_cluster):
+    for cluster in range(conf.n_clusters):
 
         # Now select the train image pairs where both images are assigned to the current cluster
         select = ( (df['cluster1'] == cluster) | (df['cluster2'] == cluster) ) & (df['test'] == False)
@@ -70,7 +70,7 @@ def faircal(dataset: Dataset, conf: Namespace) -> np.ndarray:
 
     # Iterate clusters again
     # TODO is this second loop necessary? Can be combined?
-    for cluster in range(conf.n_cluster):
+    for cluster in range(conf.n_clusters):
 
         # Select image pairs where the left image is assigned to the current cluster
         select = (df['cluster1'] == cluster)

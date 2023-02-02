@@ -32,7 +32,7 @@ def fsn(dataset: Dataset, conf: Namespace) -> np.ndarray:
 
     # Get K-means instance from dataset for the provided number of clusters
     print("Training using K-means...")
-    kmeans: KMeans = dataset.train_cluster(n_clusters=conf.n_cluster, save=True)
+    kmeans: KMeans = dataset.train_cluster(n_clusters=conf.n_clusters, save=True)
 
     # Get embeddings from dataset, together with mapper
     print("Predicting using K-means...")
@@ -54,8 +54,8 @@ def fsn(dataset: Dataset, conf: Namespace) -> np.ndarray:
     global_thr = thr_at_fpr_from_score(score_cal, gt_cal, conf.fpr_thr)
 
     # Set up cluster thresholds for the global FPR target
-    cluster_thr = np.zeros(conf.n_cluster, dtype='float')
-    for i_cluster in range(conf.n_cluster):
+    cluster_thr = np.zeros(conf.n_clusters, dtype='float')
+    for i_cluster in range(conf.n_clusters):
         # Select calibration data where either image is assigned to the current cluster
         select = (cluster1_cal == i_cluster) | (cluster2_cal == i_cluster)
 
@@ -65,7 +65,7 @@ def fsn(dataset: Dataset, conf: Namespace) -> np.ndarray:
     # Now calibrate the scores
     calibrated_score = np.zeros_like(df['score'], dtype='float')
 
-    for i_cluster in range(conf.n_cluster):
+    for i_cluster in range(conf.n_clusters):
 
         # Left image in cluster i
         select = (df['cluster1'] == i_cluster)
