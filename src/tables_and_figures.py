@@ -28,7 +28,7 @@ teamName = 'FACT-AI'
 configurations = {
     'dataset': ['rfw', 'bfw'],
     'feature': ['facenet', 'facenet-webface', 'arcface'],
-    'approach': ['uncalibrated', 'baseline', 'faircal', 'oracle', 'fsn'],
+    'approach': ['uncalibrated', 'baseline', 'faircal', 'oracle', 'fsn', 'ftc'],
 }
 skip_configurations = {
     # bfw-facenet
@@ -124,8 +124,10 @@ def get_metrics():
             with open(fname, 'rb') as f:
                 results = pickle.load(f)
 
+            folds = ['fold1', 'fold2', 'fold3', 'fold4', 'fold5'] if True else ['fold1']
+
             metrics_per_fold = defaultdict(list)
-            for fold in ['fold1', 'fold2', 'fold3', 'fold4', 'fold5']:
+            for fold in folds:
 
                 metrics_fold = get_metrics_fold( results[fold]['metrics'] )
                 for metric in metrics_fold:
@@ -135,10 +137,10 @@ def get_metrics():
             for metric in metrics_per_fold:
                 data[conf][metric] = np.mean( metrics_per_fold[metric] )
 
-            data[conf]['score'] = np.vstack([results[fold]['scores'] for fold in ['fold1', 'fold2', 'fold3', 'fold4', 'fold5']])
+            data[conf]['score'] = np.vstack([results[fold]['scores'] for fold in folds])
         else:
-            print("Could not load experiment",_conf)
-            print("Please save results at",fname)
+            print("Could not load experiment", _conf)
+            print("Please save results at", fname)
     return data
 
 metrics = get_metrics()
@@ -163,6 +165,7 @@ def rename(val):
     renamer['facenet-webface'] = '\pbox{1.8cm}{FaceNet\\break(WebFace)}'
     renamer['arcface'] = 'ArcFace'
     renamer['baseline'] = 'Baseline'
+    renamer['ftc'] = 'FTC'
     renamer['fsn'] = 'FSN'
     renamer['faircal'] = 'FairCal'
     renamer['oracle'] = 'Oracle'
@@ -170,6 +173,7 @@ def rename(val):
     renamer['by'] = r'\hfill By \scriptsize $\rightarrow$'
     renamer['metric'] = r'\hfill Metric \scriptsize $\downarrow$'
     renamer['TPR @'] = r'\hfill TPR @ \scriptsize $\downarrow$'
+    renamer['TPR @ '] = r'\hfill TPR @ \scriptsize $\downarrow$'
     renamer['feature'] = 'Feature'
     renamer['approach'] = r'\hfill Approach \scriptsize $\rightarrow$'
     renamer['threshold'] = 'Thr.'
@@ -204,7 +208,7 @@ def fill_data(data_salvador, rows, metric_names, metrics_dict, metric_to_idx: di
     """
     # Meta-information setup
     columns = {
-        'approach': ['baseline', 'fsn', 'faircal', 'oracle'],
+        'approach': ['baseline', 'ftc', 'fsn', 'faircal', 'oracle'],
         'by': ['Salvador', teamName, 'diff.'],
     }
     columnIndex, rowIndex = dictsToIndex(columns, rows)
@@ -258,7 +262,7 @@ def show_and_write_table(table_df: pd.DataFrame, caption: str, label: str, save_
         None,
         multicol_align='c|',
         hrules=True,
-        column_format='l'*(table_df.index.nlevels - 2)+'p{1.6cm}p{1.9cm}|'+('rrr|'*ncolblocks),
+        column_format='l'*(table_df.index.nlevels - 2)+'p{1.6cm}p{1.9cm}|*{'+str(ncolblocks)+'}{r@{\hspace{2.5mm}}r@{\hspace{2.5mm}}r|}',
         caption=caption,
         label=label,
         position_float='centering',
@@ -279,8 +283,9 @@ def show_and_write_table(table_df: pd.DataFrame, caption: str, label: str, save_
     table_code = table_code.replace(r"\cline", r"\cmidrule")
     # Add box surrounding table to auto-fit to width of text
     if resizebox:=True:
-        table_code = table_code.replace(r"\begin{tabular}", "\\resizebox{\columnwidth}{!}{\n\\begin{tabular}")
-        table_code = table_code.replace(r"\end{tabular}", "\\end{tabular}\n}")
+        # the % is needed to remove some extra space around the edges of the table
+        table_code = table_code.replace(r"\begin{tabular}", "\\resizebox{\columnwidth}{!}{%\n\\begin{tabular}")
+        table_code = table_code.replace(r"\end{tabular}", "\\end{tabular}%\n}")
     # Save table
     with open(fname, 'w') as f:
         f.write(table_code)
@@ -290,6 +295,7 @@ def gen_table_accuracy():
     # Data from Table 2 in Salvador (2022), excluding AUROC columns (order is kept)
     data_salvador = np.array([
         [18.42, 34.88,  11.18, 26.04,  33.61, 58.87,  86.27, 90.11], # Baseline
+        [ 6.86, 23.66,   4.65, 18.40,  13.60, 43.09,  82.09, 88.24], # FTC
         [23.01, 40.21,  17.33, 32.80,  47.11, 68.92,  86.19, 90.06], # FSN
         [23.55, 41.88,  20.64, 33.13,  46.74, 69.21,  86.28, 90.14], # FairCal
         [21.40, 41.83,  16.71, 31.60,  45.13, 67.56,  86.41, 90.40], # Oracle
@@ -325,6 +331,7 @@ def gen_table_fairness(full=True):
     # Data from Table 3 in Salvador (2022)
     data_salvador = np.array([
         [6.37, 2.89, 5.73, 3.77,  5.55, 2.48, 4.97, 2.91,  6.77, 3.63, 5.96, 4.03,  2.57, 1.39, 2.94, 1.63], # Baseline
+        [5.69, 2.32, 4.51, 2.95,  4.73, 1.93, 3.86, 2.28,  6.64, 2.80, 5.61, 3.27,  2.95, 1.48, 3.03, 1.74], # FTC
         [1.43, 0.35, 0.57, 0.40,  2.49, 0.84, 1.19, 0.91,  2.76, 1.38, 2.67, 1.60,  2.65, 1.45, 3.23, 1.71], # FSN
         [1.37, 0.28, 0.50, 0.34,  1.75, 0.41, 0.64, 0.45,  3.09, 1.34, 2.48, 1.55,  2.49, 1.30, 2.68, 1.52], # FairCal
         [1.18, 0.28, 0.53, 0.33,  1.35, 0.38, 0.66, 0.43,  2.23, 1.15, 2.63, 1.40,  1.41, 0.59, 1.30, 0.69], # Oracle
@@ -375,6 +382,7 @@ def gen_table_predictive_equality(full=True):
     # Data from Table 4 in Salvador (2022)
     data_salvador = np.array([
         [0.10, 0.15, 0.10,  0.14, 0.26, 0.16,  0.29, 1.00, 0.40,  0.12, 0.30, 0.15,   0.68, 1.02, 0.74,  0.67, 1.23, 0.79,  2.42, 7.48, 3.22,  0.72, 1.51, 0.85], # Baseline
+        [0.10, 0.15, 0.11,  0.12, 0.23, 0.14,  0.24, 0.74, 0.32,  0.09, 0.20, 0.11,   0.60, 0.91, 0.66,  0.54, 1.05, 0.66,  1.94, 5.74, 2.57,  0.54, 1.04, 0.61], # FTC
         [0.10, 0.18, 0.11,  0.11, 0.23, 0.13,  0.09, 0.20, 0.11,  0.11, 0.28, 0.14,   0.37, 0.68, 0.46,  0.35, 0.61, 0.40,  0.87, 2.19, 1.05,  0.55, 1.27, 0.68], # FSN
         [0.09, 0.14, 0.10,  0.09, 0.16, 0.10,  0.09, 0.20, 0.11,  0.11, 0.31, 0.15,   0.28, 0.46, 0.32,  0.29, 0.57, 0.35,  0.80, 1.79, 0.95,  0.63, 1.46, 0.78], # FairCal
         [0.11, 0.19, 0.12,  0.11, 0.20, 0.13,  0.12, 0.25, 0.15,  0.12, 0.27, 0.14,   0.40, 0.69, 0.45,  0.41, 0.74, 0.48,  0.77, 1.71, 0.91,  0.83, 2.08, 1.07], # Oracle
@@ -426,7 +434,7 @@ def gen_plot_scores():
     subgroups = ['African', 'Asian', 'Caucasian', 'Indian']
 
     dataset = 'rfw'
-    approaches = ['uncalibrated', 'baseline', 'fsn', 'oracle', 'faircal']
+    approaches = ['uncalibrated', 'baseline', 'fsn', 'ftc', 'oracle', 'faircal']
     feature = 'facenet-webface'
     _df = pd.read_csv( os.path.join(DATA_FOLDER, dataset, f'{dataset}.csv') )
 
@@ -490,7 +498,7 @@ def gen_plot_fpr():
 
 
     dataset = 'rfw'
-    approaches = ['baseline', 'fsn', 'faircal', 'oracle']
+    approaches = ['baseline', 'fsn', 'ftc', 'faircal', 'oracle']
     feature = 'facenet-webface'
     _df = pd.read_csv( os.path.join(DATA_FOLDER, dataset, f'{dataset}.csv') )
 
