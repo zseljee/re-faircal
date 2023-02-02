@@ -28,7 +28,7 @@ teamName = 'FACT-AI'
 configurations = {
     'dataset': ['rfw', 'bfw'],
     'feature': ['facenet', 'facenet-webface', 'arcface'],
-    'approach': ['uncalibrated', 'baseline', 'faircal', 'oracle', 'fsn'],
+    'approach': ['uncalibrated', 'baseline', 'faircal', 'oracle', 'fsn', 'ftc'],
 }
 skip_configurations = {
     # bfw-facenet
@@ -124,8 +124,10 @@ def get_metrics():
             with open(fname, 'rb') as f:
                 results = pickle.load(f)
 
+            folds = ['fold1', 'fold2', 'fold3', 'fold4', 'fold5'] if True else ['fold1']
+
             metrics_per_fold = defaultdict(list)
-            for fold in ['fold1', 'fold2', 'fold3', 'fold4', 'fold5']:
+            for fold in folds:
 
                 metrics_fold = get_metrics_fold( results[fold]['metrics'] )
                 for metric in metrics_fold:
@@ -135,10 +137,10 @@ def get_metrics():
             for metric in metrics_per_fold:
                 data[conf][metric] = np.mean( metrics_per_fold[metric] )
 
-            data[conf]['score'] = np.vstack([results[fold]['scores'] for fold in ['fold1', 'fold2', 'fold3', 'fold4', 'fold5']])
+            data[conf]['score'] = np.vstack([results[fold]['scores'] for fold in folds])
         else:
-            print("Could not load experiment",_conf)
-            print("Please save results at",fname)
+            print("Could not load experiment", _conf)
+            print("Please save results at", fname)
     return data
 
 metrics = get_metrics()
@@ -204,7 +206,7 @@ def fill_data(data_salvador, rows, metric_names, metrics_dict, metric_to_idx: di
     """
     # Meta-information setup
     columns = {
-        'approach': ['baseline', 'fsn', 'faircal', 'oracle'],
+        'approach': ['baseline', 'ftc', 'faircal', 'oracle'],
         'by': ['Salvador', teamName, 'diff.'],
     }
     columnIndex, rowIndex = dictsToIndex(columns, rows)
@@ -426,7 +428,7 @@ def gen_plot_scores():
     subgroups = ['African', 'Asian', 'Caucasian', 'Indian']
 
     dataset = 'rfw'
-    approaches = ['uncalibrated', 'baseline', 'fsn', 'oracle', 'faircal']
+    approaches = ['uncalibrated', 'baseline', 'fsn', 'ftc', 'oracle', 'faircal']
     feature = 'facenet-webface'
     _df = pd.read_csv( os.path.join(DATA_FOLDER, dataset, f'{dataset}.csv') )
 
@@ -490,7 +492,7 @@ def gen_plot_fpr():
 
 
     dataset = 'rfw'
-    approaches = ['baseline', 'fsn', 'faircal', 'oracle']
+    approaches = ['baseline', 'fsn', 'ftc', 'faircal', 'oracle']
     feature = 'facenet-webface'
     _df = pd.read_csv( os.path.join(DATA_FOLDER, dataset, f'{dataset}.csv') )
 
