@@ -32,10 +32,11 @@ def ftc(dataset: Dataset, conf: Namespace) -> np.ndarray:
 
     savepath = get_savepath(dataset=dataset, conf=conf)
 
+    loader_train = get_loader(dataset=dataset, train=True, shuffle=False)
+    loader_test = get_loader(dataset=dataset, train=False, shuffle=False)
+
     if not os.path.isfile(savepath):
         print("Training...")
-        loader_train = get_loader(dataset=dataset, train=True, shuffle=False)
-        loader_test = get_loader(dataset=dataset, train=False, shuffle=False)
 
         model, val_losses, test_loss, acc, fnr = train(
             model=model,
@@ -50,12 +51,17 @@ def ftc(dataset: Dataset, conf: Namespace) -> np.ndarray:
         print("Loading model from", savepath)
         model.load_state_dict(torch.load(savepath))
 
-    loader = get_loader(dataset=dataset, train=None, shuffle=False)
+    scores, ground_truth, _,_,_ = test_loop(dataloader=loader_train, model=model, device=device, loss_fn=None)
 
-    scores, _,_,_ = test_loop(dataloader=loader, model=model, device=device, loss_fn=None)
+    calibrator = BetaCalibration(
+        scores=scores[:,1].numpy(),
+        ground_truth=ground_truth.numpy(),
+        score_max=0.,
+        score_min=1.,
+    )
 
 
-    return scores[:,1].detach().cpu().numpy()
+    return calibrator.predict(df['score'])
 
 
 def get_loss_fn(subgroups: list[str], lamb:float = .5):
@@ -303,7 +309,7 @@ def train(model: FTCNN,
             loss_fn=loss_fn,
             optimizer=optimizer,
         )
-        _, val_loss, acc, fnr = test_loop(
+        _, _, val_loss, acc, fnr = test_loop(
             dataloader=loaders['val' if 'val' in loaders else 'test'],
             model=model,
             device=device,
@@ -322,7 +328,7 @@ def train(model: FTCNN,
         pbar.close()
         print() # To clear the TQDM semi-empty line
 
-    _, test_loss, acc, fnr = test_loop(
+    _, _, test_loss, acc, fnr = test_loop(
         dataloader=loaders['test'],
         model=model,
         device=device,
@@ -390,6 +396,7 @@ def test_loop(dataloader: DataLoader, model: FTCNN, device: torch.device, loss_f
 
     Returns:
         scores: torch.Tensor - A Nx2 tensor containing the output for each item in DataLoader
+        ground_truth: torch.Tensor - A Nx2 tensor containing the target for each item in DataLoader
         test_loss: float - Loss on test set
         acc: float - Accuracy, in range [0, 100]
         fnr: float - FNR @ .1% FPR, computed from scores and ground truth
@@ -446,7 +453,7 @@ def test_loop(dataloader: DataLoader, model: FTCNN, device: torch.device, loss_f
     # Then, FNR = 1 - TPR
     fnr = 1. - np.interp(1e-3, fpr, tpr)
 
-    return scores, test_loss, acc, fnr
+    return scores, ground_truth, test_loss, acc, fnr
 
 
 def get_savepath(dataset: Dataset, conf:Namespace) -> str:
