@@ -173,6 +173,7 @@ def rename(val):
     renamer['by'] = r'\hfill By \scriptsize $\rightarrow$'
     renamer['metric'] = r'\hfill Metric \scriptsize $\downarrow$'
     renamer['TPR @'] = r'\hfill TPR @ \scriptsize $\downarrow$'
+    renamer['TPR @ '] = r'\hfill TPR @ \scriptsize $\downarrow$'
     renamer['feature'] = 'Feature'
     renamer['approach'] = r'\hfill Approach \scriptsize $\rightarrow$'
     renamer['threshold'] = 'Thr.'
