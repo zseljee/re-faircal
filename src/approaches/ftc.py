@@ -7,11 +7,13 @@ from sklearn.metrics import roc_curve
 from torch import nn
 from torch.utils.data import DataLoader
 import tqdm
+import os
 
 from argparse import Namespace
 
 from calibrationMethods import BetaCalibration
 from dataset import Dataset
+from constants import EXPERIMENT_FOLDER
 
 DO_PBAR = True
 
@@ -23,75 +25,45 @@ def ftc(dataset: Dataset, conf: Namespace) -> np.ndarray:
     df['test'] = (df['fold'] == dataset.fold)
     df['score'] = df[dataset.feature]
 
-    loader_train = get_loader(dataset=dataset, train=True)
-    loader_test = get_loader(dataset=dataset, train=False)
-
-    # TODO very hacky, could be cleaner
-    subgroups = set()
-    for _,g1,g2,_ in loader_train:
-        subgroups |= set(g1) | set(g2)
-    for _,g1,g2,_ in loader_test:
-        subgroups |= set(g1) | set(g2)
-    subgroups = list(subgroups)
-
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Using device", device)
 
     model = FTCNN()
-    model = model.to(device=device)
-    loss_fn = nn.CrossEntropyLoss()
 
-    optimizer = optim.Adam(
-        params=model.parameters(),
-        lr=1e-3,
-        weight_decay=1e-3,
-    )
+    savepath = get_savepath(dataset=dataset, conf=conf)
 
-    epochs=10
+    if not os.path.isfile(savepath):
+        print("Training...")
+        loader_train = get_loader(dataset=dataset, train=True)
+        loader_test = get_loader(dataset=dataset, train=False)
 
-    pbar = None
-    test_loss, acc, fnr = 0., 0., 0.
-    if DO_PBAR:
-        pbar = tqdm.tqdm(desc="Training  ", total=epochs, dynamic_ncols=True, mininterval=.5, unit="epoch", position=0, leave=False)
-        pbar.set_postfix(loss=f"{test_loss:.2e}", acc=f"{acc:4.1f}%", fnr=f"{fnr:.1f}")
+        # TODO very hacky, could be cleaner
+        subgroups = set()
+        for _,g1,g2,_ in loader_train:
+            subgroups |= set(g1) | set(g2)
+        for _,g1,g2,_ in loader_test:
+            subgroups |= set(g1) | set(g2)
+        subgroups = list(subgroups)
 
-    print("Training...")
-    for epoch in range(epochs):
-        train_loop(
-            epoch=epoch,
-            model=model,
-            dataloader=loader_train,
-            device=device,
-            loss_fn=loss_fn,
-            optimizer=optimizer,
-        )
-        test_loss, acc, fnr = test_loop(
-            dataloader=loader_train,
+        model, test_loss, acc, fnr = train(
             model=model,
             device=device,
-            loss_fn=loss_fn
+            loaders={'train': loader_train, 'test': loader_test},
+            epochs=5,
         )
+        print(f"Test: loss={test_loss:.2e}, acc={acc:4.1f}%, fnr={fnr:.1f}")
+        print("\nSaving model to", savepath)
+        torch.save(model.state_dict(), savepath)
+    else:
+        print("Loading model from", savepath)
+        model.load_state_dict(torch.load(savepath))
+
+    loader = get_loader(dataset=dataset, train=None, shuffle=False)
+
+    scores, _,_,_ = test_loop(dataloader=loader, model=model, device=device, loss_fn=nn.CrossEntropyLoss())
 
 
-        if pbar is not None:
-            pbar.set_postfix(loss=f"{test_loss:.2e}", acc=f"{acc:4.1f}%", fnr=f"{fnr:.1f}", refresh=False)
-            pbar.update(1)
-        else:
-            print(f"Epoch {epoch:4}: loss={test_loss:.2e}, acc={acc:4.1f}%, fnr={fnr:.1f}")
-
-    if pbar is not None:
-        pbar.close()
-
-    test_loop(
-        dataloader=loader_test,
-        model=model,
-        device=device,
-        loss_fn=loss_fn
-    )
-
-    model.cpu()
-
-    return np.zeros_like(df['score'])
+    return scores[:,1].detach().cpu().numpy()
 
 
 def fair_individual_loss(g1: list[str], g2: list[str], y: torch.Tensor, logits: torch.Tensor):
@@ -118,14 +90,18 @@ def fair_individual_loss(g1: list[str], g2: list[str], y: torch.Tensor, logits: 
     return loss
 
 
-def get_loader(dataset: Dataset, train:bool=False) -> DataLoader:
+def get_loader(dataset: Dataset,
+               train: bool|None=False,
+               shuffle: bool = True,
+               batch_size: int = 200,
+              ) -> DataLoader:
     embeddings, idx2path = dataset.get_embeddings(train=train, return_mapper=True)
     path2idx = dict((path,idx) for idx,path in enumerate(idx2path))
 
     df = dataset.df.copy()
-    if train:
+    if train == True:
         df = df[ df['fold'] != dataset.fold ]
-    else:
+    elif train == False:
         df = df[ df['fold'] == dataset.fold ]
     df.reset_index(inplace=True)
 
@@ -155,10 +131,11 @@ def get_loader(dataset: Dataset, train:bool=False) -> DataLoader:
 
     return DataLoader(
         dataset=data,
-        batch_size=200, # TODO
-        shuffle=True,
+        batch_size=batch_size,
+        shuffle=shuffle,
         num_workers=0
     )
+
 
 
 class EmbeddingsDataset(torch.utils.data.Dataset):
@@ -189,6 +166,7 @@ class EmbeddingsDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, str, str, bool]:
         return self.error_embeddings[idx], self.attr_left[idx], self.attr_right[idx], self.labels[idx]
 
+
 class FTCNN(nn.Module):
     """TODO"""
     def __init__(self):
@@ -210,6 +188,69 @@ class FTCNN(nn.Module):
         return self.model(x)
 
 
+def train(model: FTCNN,
+          device: torch.device,
+          loaders: dict[str, DataLoader],
+          epochs: int = 50,
+          lr: float = 1e-3,
+          weight_decay: float = 1e-3
+    ) -> FTCNN:
+
+    assert 'train' in loaders and 'test' in loaders, "Please specify a train and test set in `loaders` parameter."
+
+    loss_fn = nn.CrossEntropyLoss()
+
+    optimizer = optim.Adam(
+        params=model.parameters(),
+        lr=lr,
+        weight_decay=weight_decay,
+    )
+
+    pbar = None
+    test_loss, acc, fnr = 0., 0., 0.
+    if DO_PBAR:
+        pbar = tqdm.tqdm(desc="Training  ", total=epochs, mininterval=.5, unit="epoch", ncols=150, position=0, leave=False)
+        pbar.set_postfix(loss=f"{test_loss:.2e}", acc=f"{acc:4.1f}%", fnr=f"{fnr:.1f}")
+
+    for epoch in range(epochs):
+        train_loop(
+            epoch=epoch,
+            model=model,
+            dataloader=loaders['train'],
+            device=device,
+            loss_fn=loss_fn,
+            optimizer=optimizer,
+        )
+        _, test_loss, acc, fnr = test_loop(
+            dataloader=loaders['val' if 'val' in loaders else 'test'],
+            model=model,
+            device=device,
+            loss_fn=loss_fn
+        )
+
+
+        if pbar is not None:
+            pbar.set_postfix(loss=f"{test_loss:.2e}", acc=f"{acc:4.1f}%", fnr=f"{fnr:.1f}", refresh=False)
+            pbar.update(1)
+        else:
+            print(f"Epoch {epoch:4}: loss={test_loss:.2e}, acc={acc:4.1f}%, fnr={fnr:.1f}")
+
+    if pbar is not None:
+        pbar.close()
+        print('\n')
+
+    _, test_loss, acc, fnr = test_loop(
+        dataloader=loaders['test'],
+        model=model,
+        device=device,
+        loss_fn=loss_fn
+    )
+
+    model.cpu()
+
+    return model, test_loss, acc, fnr
+
+
 def train_loop(epoch, model, dataloader: DataLoader, device, loss_fn, optimizer, pbar=None):
     """TODO"""
     model.train()
@@ -217,7 +258,7 @@ def train_loop(epoch, model, dataloader: DataLoader, device, loss_fn, optimizer,
 
     pbar = None
     if DO_PBAR:
-        pbar = tqdm.tqdm(dataloader, desc=f"Epoch {epoch:4}", position=1, leave=False, unit="pair", unit_scale=dataloader.batch_size)
+        pbar = tqdm.tqdm(dataloader, desc=f"Epoch {epoch:4}", position=1, leave=False, unit="pair", ncols=150, unit_scale=dataloader.batch_size)
 
     for X, g1, g2, y in dataloader:
         X = X.to(device)
@@ -239,7 +280,7 @@ def train_loop(epoch, model, dataloader: DataLoader, device, loss_fn, optimizer,
 
 
 @torch.no_grad()
-def test_loop(dataloader, model, device, loss_fn):
+def test_loop(dataloader: DataLoader, model: FTCNN, device: torch.device, loss_fn: callable):
     """TODO"""
     size = len(dataloader.dataset)
     test_loss, correct = 0., 0.
@@ -252,7 +293,7 @@ def test_loop(dataloader, model, device, loss_fn):
 
     pbar = None
     if DO_PBAR:
-        pbar = tqdm.tqdm(dataloader, desc="Validating", position=1, leave=False, unit="pair", unit_scale=200)
+        pbar = tqdm.tqdm(dataloader, desc="Validating", position=1, leave=False, unit="pair", ncols=150, unit_scale=dataloader.batch_size)
 
     for X,g1,g2,y in dataloader:
         X: torch.Tensor = X.to(device)
@@ -278,4 +319,19 @@ def test_loop(dataloader, model, device, loss_fn):
     fpr, tpr, thr = roc_curve(ground_truth, scores[:, 1].numpy())
     fnr = 1. - np.interp(1e-3, fpr, tpr)
 
-    return test_loss, acc, fnr
+    return scores, test_loss, acc, fnr
+
+
+def get_savepath(dataset: Dataset, conf:Namespace) -> str:
+
+    dirname = os.path.join(
+        EXPERIMENT_FOLDER,
+        "FTCmodels",
+    )
+    os.makedirs(dirname, exist_ok=True)
+
+    fname = os.path.join(
+        dirname,
+        f"FTCNN_{dataset.name}_{conf.feature}_fold{dataset.fold}.pt"
+    )
+    return fname

@@ -112,6 +112,8 @@ def main():
                 print("ERROR, could not run experiment! It gives the following error:")
                 print(e)
                 traceback.print_exc(limit=None, file=None, chain=True)
+            except KeyboardInterrupt:
+                print("\nInterrupted\n")
 
         print("\nExperiment finished, find results at", saveto)
         print(("="*80))
