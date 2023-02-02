@@ -262,7 +262,7 @@ def show_and_write_table(table_df: pd.DataFrame, caption: str, label: str, save_
         None,
         multicol_align='c|',
         hrules=True,
-        column_format='l'*(table_df.index.nlevels - 2)+'p{1.6cm}p{1.9cm}|'+('rrr|'*ncolblocks),
+        column_format='l'*(table_df.index.nlevels - 2)+'p{1.6cm}p{1.9cm}|*{'+str(ncolblocks)+'}{r@{\hspace{2.5mm}}r@{\hspace{2.5mm}}r|}',
         caption=caption,
         label=label,
         position_float='centering',
@@ -283,8 +283,9 @@ def show_and_write_table(table_df: pd.DataFrame, caption: str, label: str, save_
     table_code = table_code.replace(r"\cline", r"\cmidrule")
     # Add box surrounding table to auto-fit to width of text
     if resizebox:=True:
-        table_code = table_code.replace(r"\begin{tabular}", "\\resizebox{\columnwidth}{!}{\n\\begin{tabular}")
-        table_code = table_code.replace(r"\end{tabular}", "\\end{tabular}\n}")
+        # the % is needed to remove some extra space around the edges of the table
+        table_code = table_code.replace(r"\begin{tabular}", "\\resizebox{\columnwidth}{!}{%\n\\begin{tabular}")
+        table_code = table_code.replace(r"\end{tabular}", "\\end{tabular}%\n}")
     # Save table
     with open(fname, 'w') as f:
         f.write(table_code)
