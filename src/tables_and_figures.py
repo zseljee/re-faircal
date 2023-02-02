@@ -33,13 +33,17 @@ configurations = {
 skip_configurations = {
     # bfw-facenet
     ('bfw', 'facenet'),
+    ('bfw', 'facenet', 'uncalibrated'),
     ('bfw', 'facenet', 'baseline'),
+    ('bfw', 'facenet', 'ftc'),
     ('bfw', 'facenet', 'fsn'),
     ('bfw', 'facenet', 'faircal'),
     ('bfw', 'facenet', 'oracle'),
     # rfw-arcface
     ('rfw', 'arcface'),
+    ('rfw', 'arcface', 'uncalibrated'),
     ('rfw', 'arcface', 'baseline'),
+    ('rfw', 'arcface', 'ftc'),
     ('rfw', 'arcface', 'fsn'),
     ('rfw', 'arcface', 'faircal'),
     ('rfw', 'arcface', 'oracle'),
@@ -171,9 +175,9 @@ def rename(val):
     renamer['oracle'] = 'Oracle'
     renamer['dataset'] = 'Dataset'
     renamer['by'] = r'\hfill By \scriptsize $\rightarrow$'
-    renamer['metric'] = r'\hfill Metric \scriptsize $\downarrow$'
-    renamer['TPR @'] = r'\hfill TPR @ \scriptsize $\downarrow$'
-    renamer['TPR @ '] = r'\hfill TPR @ \scriptsize $\downarrow$'
+    renamer['metric'] = r'Metric \scriptsize $\downarrow$'
+    renamer['TPR @'] = r'TPR @ \scriptsize $\downarrow$'
+    renamer['TPR @ '] = r'TPR @ \scriptsize $\downarrow$'
     renamer['feature'] = 'Feature'
     renamer['approach'] = r'\hfill Approach \scriptsize $\rightarrow$'
     renamer['threshold'] = 'Thr.'
@@ -427,10 +431,16 @@ def gen_table_predictive_equality(full=True):
 
 
 gen_table_predictive_equality()
+# Add the following thing to the 1st, 2nd, 4th and 5th pbox, because they overlap otherwise...
+# \rule[-6pt]{0pt}{1mm}
+# Also, manually remove the metric column because it's only STD anyway
 gen_table_predictive_equality(full=False)
 
 
 def gen_plot_scores():
+
+    plt.style.use('src/violinPlot.mplstyle')
+
     subgroups = ['African', 'Asian', 'Caucasian', 'Indian']
 
     dataset = 'rfw'
@@ -496,9 +506,11 @@ gen_plot_scores()
 
 def gen_plot_fpr():
 
+    plt.style.use('src/fprPlot.mplstyle')
 
     dataset = 'rfw'
-    approaches = ['baseline', 'fsn', 'ftc', 'faircal', 'oracle']
+    # approaches = ['baseline', 'fsn', 'ftc', 'faircal', 'oracle']
+    approaches = ['baseline', 'fsn', 'faircal']
     feature = 'facenet-webface'
     _df = pd.read_csv( os.path.join(DATA_FOLDER, dataset, f'{dataset}.csv') )
 
@@ -507,7 +519,7 @@ def gen_plot_fpr():
     else:
         subgroups = ['B', 'A', 'W', 'I']
 
-    fig, axs = plt.subplots(1,4, squeeze=False, figsize=(20,5))
+    fig, axs = plt.subplots(1,len(approaches), squeeze=False, figsize=(20,5))
     axs = axs.flatten()
     for ax,approach in zip(axs, approaches):
 
