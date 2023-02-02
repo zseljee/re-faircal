@@ -24,6 +24,14 @@ APPROACHES = {
 }
 
 
+def skip_experiment(conf):
+    """Return whether to do the experiment.  Some models and features cannot be combined."""
+    return (
+        (conf.dataset == 'rfw' and conf.feature == 'arcface')
+        or (conf.dataset == 'bfw' and conf.feature == 'facenet')
+    )
+
+
 def gather_results(dataset: Dataset,
                    conf: Namespace
                   ) -> dict[str, dict[str, any]]:
@@ -68,7 +76,7 @@ def gather_results(dataset: Dataset,
 
 def main():
 
-    if not check_preprocess():
+    if not all(check_preprocess(conf) for conf in iterate_configurations(args) if not skip_experiment(conf)):
         print("Preprocessing isn't done, do you want to run it now?  [y]/n")
         ans = input("> ").strip().lower()
         if ans.startswith("y") or ans == "":
@@ -88,8 +96,7 @@ def main():
         print("\n"+("="*80))
         print("Running on configuration", conf)
 
-        if (conf.dataset == 'rfw' and conf.feature == 'arcface')\
-        or (conf.dataset == 'bfw' and conf.feature == 'facenet'):
+        if skip_experiment(conf):
             print("Skipping experiment! ArcFace cannot be combined with RFW and FaceNet(VGGFace2) cannot be combined with BFW.")
             continue
 

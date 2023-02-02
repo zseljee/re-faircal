@@ -27,6 +27,9 @@ print("Using device:", device)
 # If cropping has already been done, skip it by setting this to True
 SKIP_CROP = False
 
+# If embedding has already been done, skip it by setting this to True
+SKIP_EMBED = False
+
 # Set resize for MTCNN, if not resizing, set to None
 RESIZE = (400,400)
 
@@ -177,6 +180,7 @@ def get_datasets() -> dict[str, pd.DataFrame]:
     datasets['bfw'] = df
 
     return datasets
+    # return {'bfw': datasets['bfw']}
 
 
 def get_models() -> dict[str, "torch.nn.Module | ArcFace"]:
@@ -406,6 +410,12 @@ def check_preprocess(conf: Optional[Namespace] = None):
         for model_name in models:
             fname = os.path.join( EMBEDDING_FOLDER[dataset], EMBEDDING_FORMAT.format(model_name) )
             valid &= os.path.isfile(fname)
+            # Similarity saved?
+            try:
+                df = pd.read_csv(OUTPUT_CSV[dataset])
+                valid &= model_name in df.columns
+            except FileNotFoundError:
+                pass
         # Results
         valid &= os.path.isfile(OUTPUT_CSV[dataset])
 
@@ -423,7 +433,10 @@ def main():
     print("Available datasets:", set(datasets.keys()))
 
     # models
-    models = get_models()
+    if SKIP_EMBED:
+        models = _get_models()
+    else:
+        models = get_models()
     print("Available models:", set(models.keys()))
 
     # MTCNN
@@ -458,27 +471,36 @@ def main():
             print("\tCropped {}/{} images".format(len(cropped_paths), len(paths)))
 
         for modelName in models:
-            print(f"\tEmbedding using {modelName} model...")
-            model = models[modelName]
-            embeddings = embed(
-                model=model,
-                root=CROPPED_IMAGE_ROOT[dataset],
-                paths=cropped_paths,
-                pbar=DO_PBAR,
-                batch_size=BATCH_SIZE,
-            )
-            print("\t\tEmbedded {}/{} images".format(len(embeddings), len(paths)))
+            if SKIP_EMBED:
+                # Load embeddings
+                fname = os.path.join( EMBEDDING_FOLDER[dataset], EMBEDDING_FORMAT.format(modelName) )
+                print(f"\t\tLoading embeddings from {fname}")
+                with open(fname, 'rb') as f:
+                    embeddings: dict[str, np.ndarray] = pickle.load(f)
 
-            # Save embeddings
-            fname = os.path.join( EMBEDDING_FOLDER[dataset], EMBEDDING_FORMAT.format(modelName) )
-            print(f"\t\tSaving embeddings to {fname}")
-            with open(fname, 'wb') as f:
-                pickle.dump(embeddings, f)
+            else:
+                print(f"\tEmbedding using {modelName} model...")
+                model = models[modelName]
+                embeddings = embed(
+                    model=model,
+                    root=CROPPED_IMAGE_ROOT[dataset],
+                    paths=cropped_paths,
+                    pbar=DO_PBAR,
+                    batch_size=BATCH_SIZE,
+                )
+                print("\t\tEmbedded {}/{} images".format(len(embeddings), len(paths)))
+
+                # Save embeddings
+                fname = os.path.join( EMBEDDING_FOLDER[dataset], EMBEDDING_FORMAT.format(modelName) )
+                print(f"\t\tSaving embeddings to {fname}")
+                with open(fname, 'wb') as f:
+                    pickle.dump(embeddings, f)
 
             print("\tComputing similarity scores...")
             df[modelName] = similarities(df, embeddings)
 
-        model.to(cpu)
+        if not SKIP_EMBED:
+            model.to(cpu)
 
         # Drop rows (ie image pairs) that have no embeddings for them
         print("\tDropping un-embedded pairs...")

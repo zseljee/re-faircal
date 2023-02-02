@@ -9,6 +9,7 @@ environment_cpu_arcface_mxnet.yml
 *cluster*.png
 experiments/
 experiments-rerun/
+experiments-original/
 
 # Mac Thing
 .DS_Store
