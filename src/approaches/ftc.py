@@ -51,7 +51,7 @@ def ftc(dataset: Dataset, conf: Namespace) -> np.ndarray:
 
     # Set up dataloaders
     print("Setting up dataloaders...")
-    loader_train = get_loader(dataset=dataset, train=True, shuffle=False)
+    loader_train = get_loader(dataset=dataset, train=True, shuffle=True)
     loader_test = get_loader(dataset=dataset, train=False, shuffle=False)
 
     # If no model is found, train one
