@@ -1,6 +1,7 @@
 import os
 
-DATA_FOLDER = os.path.abspath( './data/' )
+DATA_FOLDER =  os.path.abspath( os.path.join( os.path.dirname(__file__), '../../', 'data/' ) )
+
 DATA_ROOT = {
     'rfw': os.path.join( DATA_FOLDER, 'rfw/' ),
     'bfw': os.path.join( DATA_FOLDER, 'bfw/' ),
