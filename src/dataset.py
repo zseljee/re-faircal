@@ -274,7 +274,9 @@ class Dataset(object):
                 predict clusters for new points or get the labels of training points
         """
         # Set up filename
-        fname = os.path.join(EXPERIMENT_FOLDER, 'kmeans', f'{self.name}_{self.feature}_nclusters{n_clusters}_fold{self.fold}.pkl')
+        kmeansdir = os.path.join(EXPERIMENT_FOLDER, 'kmeans')
+        os.makedirs(kmeansdir, exist_ok=True)
+        fname = os.path.join(kmeansdir, f'{self.name}_{self.feature}_nclusters{n_clusters}_fold{self.fold}.pkl')
 
         # If already trained using these parameters
         if os.path.isfile(fname):

@@ -1,3 +1,4 @@
+from typing import Optional
 from dataset import Dataset
 from constants import *
 import matplotlib.pyplot as plt
@@ -15,6 +16,7 @@ def main(dataset:str = 'bfw', feature:str = 'facenet'):
     print('dataset loaded successfully')
 
     df = ds.df
+    ds.set_fold(1)
     kmeans = ds.train_cluster(save=True)
     embeddings, idx2path = ds.get_embeddings(train=None, return_mapper=True)
 
@@ -57,24 +59,26 @@ def main(dataset:str = 'bfw', feature:str = 'facenet'):
 
     # inspect_cluster(cluster_assignments, idx2path)
 
-    return df_
+    return df_, cluster_assignments, idx2path
 
-def inspect_cluster(cluster_assignment, idx2path):
+def inspect_cluster(cluster_assignment, idx2path, cluster_nr: Optional[int] = None, interactive=True):
     N_CLUSTERS = 100
     clusters: list[set[str]] = [set() for _ in range(N_CLUSTERS)]
     for i_emb, i_cluster in enumerate(cluster_assignment):
         clusters[i_cluster].add( idx2path[i_emb] )
 
-    while True:
-        cluster_nr = input('What cluster do you want to inspect?\n>')
-        if cluster_nr == 'q':
-            print('shutting down..')
-            return 0
-        elif cluster_nr.isnumeric() == False:
-            print('not a valid cluster number')
-            continue
-        else:
-            cluster_nr = int(cluster_nr)
+    while interactive or cluster_nr is not None:
+        if cluster_nr is None:
+            cluster_nr = input('What cluster do you want to inspect?\n>')
+
+            if cluster_nr == 'q':
+                print('shutting down..')
+                return 0
+            elif not cluster_nr.isnumeric():
+                print('not a valid cluster number')
+                continue
+            else:
+                cluster_nr = int(cluster_nr)
 
         paths = clusters[cluster_nr]
         cluster_size = len(paths)
@@ -89,6 +93,8 @@ def inspect_cluster(cluster_assignment, idx2path):
         # plt.tight_layout()
         plt.savefig(f"cluster_{cluster_nr}.png")
         plt.close(fig)
+
+        cluster_nr = None
 
 
 if __name__ == '__main__':

@@ -400,7 +400,7 @@ def check_preprocess(conf: Optional[Namespace] = None):
     else:
         datasets = [conf.dataset]
         models = [conf.feature]
-    print("Checking preprocessing for:", datasets, "and", models)
+    # print("Checking preprocessing for:", datasets, "and", models)
 
     valid = True
     for dataset in datasets:
@@ -419,7 +419,7 @@ def check_preprocess(conf: Optional[Namespace] = None):
         # Results
         valid &= os.path.isfile(OUTPUT_CSV[dataset])
 
-    print("Succes!" if valid else "Failed check!")
+    # print("Succes!" if valid else "Failed check!")
     return valid
 
 
