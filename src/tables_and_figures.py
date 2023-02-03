@@ -8,20 +8,20 @@ import itertools
 
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
-from IPython.core.display import HTML, display_html as display
+# from IPython.core.display import HTML, display_html as display
 from sklearn.metrics import roc_curve
 
 from approaches.utils import tpr_at_fpr
 from constants import EXPERIMENT_FOLDER, DATA_FOLDER
 from utils import get_experiment_folder
 
-parser = ArgumentParser()
-parser.add_argument("--use-arcface", action="store_true")
-args = parser.parse_args()
-EXCLUDE_ARCFACE = not args.use_arcface
-del parser
-del args
-print("Ignoring non-existent ArcFace results" if EXCLUDE_ARCFACE else "Using results for ArcFace")
+# parser = ArgumentParser()
+# parser.add_argument("--use-arcface", action="store_true")
+# args = parser.parse_args()
+# EXCLUDE_ARCFACE = not args.use_arcface
+# del parser
+# del args
+# print("Ignoring non-existent ArcFace results" if EXCLUDE_ARCFACE else "Using results for ArcFace")
 
 teamName = 'FACT-AI'
 
@@ -138,6 +138,7 @@ def get_metrics():
                     metrics_per_fold[metric].append( metrics_fold[metric] )
 
             # Average over each fold
+            # print(metric, metrics_per_fold[metric])
             for metric in metrics_per_fold:
                 data[conf][metric] = np.mean( metrics_per_fold[metric] )
 
@@ -205,7 +206,7 @@ def dictsToIndex(columns, rows):
     return columnIndex, rowIndex
 
 
-def fill_data(data_salvador, rows, metric_names, metrics_dict, metric_to_idx: dict[str, int]):
+def fill_data(data_salvador, rows, metric_names, metrics_dict, metric_to_idx: dict[str, int], EXCLUDE_ARCFACE=False):
     """fills a numpy array in the shape of data_salvador with data from metrics.
     The metrics are taken from the keys of metric_to_idx and put at an offset of the value.
     Creates a dataframe from it in the end that also contains the difference.
@@ -251,9 +252,9 @@ def show_and_write_table(table_df: pd.DataFrame, caption: str, label: str, save_
     """Write the table to the save_as file with the given caption and label.
     """
     # Only useful in Jupyter...
-    dif_col_formatter = dict((col, '<b>{:+.2f}</b>') for col in table_df.columns if col[-1] == 'diff.')
-    styler = table_df.style.format(dif_col_formatter, na_rep='TBD', precision=2, escape="latex")
-    display(HTML(styler.to_html()))
+    # dif_col_formatter = dict((col, '<b>{:+.2f}</b>') for col in table_df.columns if col[-1] == 'diff.')
+    # styler = table_df.style.format(dif_col_formatter, na_rep='TBD', precision=2, escape="latex")
+    # display(HTML(styler.to_html()))
 
     # Meta-setup
     dif_col_formatter = dict((col, '{:+.2f}') for col in table_df.columns if col[-1] == 'diff.')
@@ -317,7 +318,7 @@ def gen_table_accuracy():
         'TPR @ 1.0\% FPR': 1,
     }
 
-    df = fill_data(data_salvador, rows, metric_names, metrics, metrics_to_idx)
+    df = fill_data(data_salvador, rows, metric_names, metrics, metrics_to_idx, EXCLUDE_ARCFACE=False)
 
     show_and_write_table(df,
                          caption = "Global accuracy measured by TPR at several FPR thresholds, comparing the original results (Sal.) with ours. (Higher is better.)",
@@ -363,7 +364,7 @@ def gen_table_fairness(full=True):
             'KS - STD': 1,
         }
 
-    df = fill_data(data_salvador, rows, metric_names, metrics, metrics_to_idx)
+    df = fill_data(data_salvador, rows, metric_names, metrics, metrics_to_idx, EXCLUDE_ARCFACE=not full)
 
     if full:
         caption = "Fairness calibration measured by the mean KS across the sensitive subgroups. Showing the Mean, Average Absolute Deviation (AAD), Maximum Absolute Deviation (MAD) and Standard Deviation (STD). Comparing original results (Sal.) with ours. (Lower is better in all cases.)"
@@ -417,7 +418,7 @@ def gen_table_predictive_equality(full=True):
             'FPR @ 1.0\% global FPR - STD': 4,
         }
 
-    df = fill_data(data_salvador, rows, metric_names, metrics, metrics_to_idx)
+    df = fill_data(data_salvador, rows, metric_names, metrics, metrics_to_idx, EXCLUDE_ARCFACE=not full)
 
     if full:
         caption = "Predictive equality: For two choices of global FPR compare the deviations in subgroup FPRs in terms of Average Absolute Deviation (AAD), Maximum Absolute Deviation (MAD), and Standard Deviation (STD). Comparing original results (Sal.) with ours. (Lower is better in all cases.)"
