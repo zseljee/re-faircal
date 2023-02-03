@@ -90,7 +90,7 @@ def ftc(dataset: Dataset, conf: Namespace) -> np.ndarray:
     return calibrator.predict(df['score'])
 
 
-def get_loss_fn(subgroups: list[str], lamb:float = .5):
+def get_loss_fn(subgroups: "list[str]", lamb:float = .5):
     """
     Wrapper to set up individual fairness score.
 
@@ -106,7 +106,7 @@ def get_loss_fn(subgroups: list[str], lamb:float = .5):
     CELoss = nn.CrossEntropyLoss()
 
     # Set up Fair Individual Loss function
-    def fair_individual_loss(g1: list[str], g2: list[str], y: torch.Tensor, logits: torch.Tensor):
+    def fair_individual_loss(g1: "list[str]", g2: "list[str]", y: torch.Tensor, logits: torch.Tensor):
         """
         [Copied from original paper]
 
@@ -144,7 +144,7 @@ def get_loss_fn(subgroups: list[str], lamb:float = .5):
 
 
 def get_loader(dataset: Dataset,
-               train: bool|None=False,
+               train: "bool|None"=False,
                shuffle: bool = True,
                batch_size: int = 200,
               ) -> DataLoader:
@@ -238,8 +238,8 @@ class EmbeddingsDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         error_embeddings: torch.Tensor,
-        attr_left: list[str],
-        attr_right: list[str],
+        attr_left: "list[str]",
+        attr_right: "list[str]",
         labels: np.ndarray[bool],
     ) -> None:
         """
@@ -273,7 +273,7 @@ class EmbeddingsDataset(torch.utils.data.Dataset):
     def __len__(self) -> int:
         return self.labels.shape[0]
 
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, str, str, bool]:
+    def __getitem__(self, idx: int) -> "tuple[torch.Tensor, str, str, bool]":
         return self.error_embeddings[idx], self.attr_left[idx], self.attr_right[idx], self.labels[idx]
 
 
@@ -303,7 +303,7 @@ class FTCNN(nn.Module):
 
 def train(model: FTCNN,
           device: torch.device,
-          loaders: dict[str, DataLoader],
+          loaders: "dict[str, DataLoader]",
           epochs: int = 50,
           lr: float = 1e-3,
           weight_decay: float = 1e-3
@@ -443,7 +443,7 @@ def train_loop(epoch: int, model: FTCNN, dataloader: DataLoader, device: torch.d
 
 
 @torch.no_grad()
-def test_loop(dataloader: DataLoader, model: FTCNN, device: torch.device, loss_fn: callable) -> tuple[torch.Tensor, float, float, float]:
+def test_loop(dataloader: DataLoader, model: FTCNN, device: torch.device, loss_fn: callable) -> "tuple[torch.Tensor, float, float, float]":
     """
     Standard test loop for Torch. Iterate over given dataloader, keep track of
     the running #correct, output and ground truth and return some metrics.

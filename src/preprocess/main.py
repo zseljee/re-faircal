@@ -69,9 +69,9 @@ class PathToImage(Dataset):
 
     def __init__(self,
                  image_root: str,
-                 paths: list[str],
-                 resize: None|tuple[int, int]=None,
-                 transform: None|transforms.Compose=None):
+                 paths: "list[str]",
+                 resize: "None|tuple[int, int]"=None,
+                 transform: "None|transforms.Compose"=None):
         """
         Parameters:
             image_root: str - First common directory of all images
@@ -87,7 +87,7 @@ class PathToImage(Dataset):
     def __len__(self):
         return self.len
 
-    def __getitem__(self, idx: int) -> tuple[str, Image.Image]:
+    def __getitem__(self, idx: int) -> "tuple[str, Image.Image]":
         # Open image whose path is at index idx
         I = Image.open( os.path.join( self.image_root, self.paths[idx]) )
 
@@ -103,7 +103,7 @@ class PathToImage(Dataset):
         return [self.paths[idx], I]
 
 
-def collate(batch: list[tuple[str, Image.Image]]) -> tuple[list[str], list[Image.Image]]:
+def collate(batch: "list[tuple[str, Image.Image]]") -> "tuple[list[str], list[Image.Image]]":
     """
     Collate function to use with PathToImage class
 
@@ -128,7 +128,7 @@ def collate(batch: list[tuple[str, Image.Image]]) -> tuple[list[str], list[Image
     return paths, images
 
 
-def get_datasets() -> dict[str, pd.DataFrame]:
+def get_datasets() -> "dict[str, pd.DataFrame]":
     """
     Gather data from the RFW and BFW dataset, return a dictionary containing dataframes
     which contain the necessary info.
@@ -183,14 +183,14 @@ def get_datasets() -> dict[str, pd.DataFrame]:
     # return {'bfw': datasets['bfw']}
 
 
-def get_models() -> dict[str, "torch.nn.Module | ArcFace"]:
+def get_models() -> "dict[str, torch.nn.Module | ArcFace]":
     """
     Load models into a dictionary, assumes models behave like torch modules
     """
     return {model_name: model_factory() for model_name, model_factory in _get_models().items()}
 
 
-def _get_models() -> dict[str, Callable[[], "torch.nn.Module | ArcFace"]]:
+def _get_models() -> "dict[str, Callable[[], torch.nn.Module | ArcFace]]":
     """Same as get_models, but it doesn't instantiate the models immediately."""
     return {
         'facenet': lambda: InceptionResnetV1(pretrained='vggface2').eval(),
@@ -208,14 +208,14 @@ def get_MTCNN() -> MTCNN:
 
 
 @torch.no_grad()
-def crop(paths: list[str],
+def crop(paths: "list[str]",
          read_root: str,
          save_root: str,
          mtcnn: MTCNN,
          pbar: bool = True,
          batch_size: int = 1,
-         resize: tuple[int,int]|None = None
-        ) -> list[str]:
+         resize: "tuple[int,int]|None" = None
+        ) -> "list[str]":
     """
     Crop given images and save them to the output directory.
 
@@ -264,7 +264,7 @@ def crop(paths: list[str],
         save_to = [os.path.join(save_root, path) for path in paths]
 
         # Crop images and save
-        cropped_imgs: list[None|torch.Tensor] = mtcnn(images, save_path=save_to)
+        cropped_imgs: "list[None|torch.Tensor]" = mtcnn(images, save_path=save_to)
 
         # Filter paths where image is saved
         for path,img in zip(paths, cropped_imgs):
@@ -277,10 +277,10 @@ def crop(paths: list[str],
 @torch.no_grad()
 def embed(model: torch.nn.Module,
           root: str,
-          paths: list[str],
+          paths: "list[str]",
           pbar: bool = True,
           batch_size: int = 1
-         ) -> dict[str,np.ndarray]:
+         ) -> "dict[str,np.ndarray]":
     """
     Embed images in batches using provided model. Works similarly to crop method
 
@@ -351,7 +351,7 @@ def embed(model: torch.nn.Module,
     return embeddings
 
 
-def similarities(df: pd.DataFrame, embeddings: dict[str, np.ndarray]) -> pd.Series:
+def similarities(df: pd.DataFrame, embeddings: "dict[str, np.ndarray]") -> pd.Series:
     """
     Given a dataframe containing the columns `path1` and `path2`,
     return the cosine similarity of two corresponding embeddings.

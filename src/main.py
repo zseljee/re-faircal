@@ -34,7 +34,7 @@ def skip_experiment(conf):
 
 def gather_results(dataset: Dataset,
                    conf: Namespace
-                  ) -> dict[str, dict[str, any]]:
+                  ) -> "dict[str, dict[str, any]]":
     """
     Given a dataset and some configuration, run an experiment on each fold
     of the dataset.

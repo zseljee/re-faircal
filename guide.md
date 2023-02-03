@@ -37,48 +37,25 @@ This dataset is also described in the [data readme].  We expect the test folder 
 
 ## Preprocessing
 
-Some of the preprocessing steps may be skipped, as they are only necessary for investigating if the intermediate results are as expected.
-
-### Store MTCNN results
-
-For creating the embeddings, there is a minor difference between using the immediate output of the MTCNN network or first saving this as files and then loading these files.  You may also wish to store the MTCNN output for inspection.  The following command creates subdirectories in the same structure for each dataset with the cropped images.  Faces that aren't recognised will be missing in the new directory.  Specifically, the BFW dataset will be stored under `[data/bfw/]data_cropped/` and RFW under `[data/rfw/]data_cropped`.
-
-```sh
-python3 src/mtcnn_preprocess.py -v[vvv] --dataset all [BFW] [RFW] --steps MTCNN unrecognised --bfw_datafolder <path> --rfw_datafolder <path>
-```
-
-### Filter the embeddings
-
-From the dataset created by the MTCNN, we can find out which pairs should be excluded from our training.  This step recreates the tables that are necessary with only information from the pairs that can be used.
-
-```sh
-python3 filter/filter_images.py
-```
-
-### Creating the embeddings
-
-This requires a file from the previous step, which requires also running the MTCNN on the RFW dataset.  Although we store the resulting crops, we do not use them, because we decided the direct output of the MTCNN would be more accurate than the output re-read from the stored `jpg` files due to the compression this does.
-
-```sh
-cd models
-python3 embed_preprocess.py
-cd ..
-```
+Preprocessing is done automatically when the experiments recognise they are being run for the first time.
 
 ## Experiments
 
-The experiments can be run in their entirety once the embeddings have been created with the command below.  This specifically has to do the K-means clustering before it can do FairCal, but once the clusters have been created re-running the program gives the results quicker.
+The experiments can be run in their entirety with the command below.
 
 ```sh
-python3 refactored-code/main.py
+python3 src/main.py
 ```
+
+However, this code may fail if no ArcFace embeddings are present depending on the specific set-up chosen.  If this is the case, change environment to create the ArcFace embeddings before going back to run the experiments.
 
 ## Results (Figures and Tables)
 
-To create figures and tables, you can run the final program:
+To create figures and tables, you can run the final notebook `src/Tables and Figures.ipynb` or run the following 2 python files:
 
 ```sh
-python3 refactored-code/tables_and_figures.py
+python3 src/tables_and_figures.py
+python src/extension.py
 ```
 
 [data readme]: ./data/README.md
