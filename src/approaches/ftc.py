@@ -82,8 +82,8 @@ def ftc(dataset: Dataset, conf: Namespace) -> np.ndarray:
     calibrator = BetaCalibration(
         scores=scores[:,1].numpy(),
         ground_truth=ground_truth.numpy(),
-        score_max=0.,
-        score_min=1.,
+        score_max=1.,
+        score_min=0.,
     )
 
     # Use calibrator on entire dataset
