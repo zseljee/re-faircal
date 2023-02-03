@@ -29,7 +29,7 @@ def get_experiment_folder(conf: Namespace, makedirs: bool=True) -> str:
     return path
 
 
-def iterate_configurations(args: Namespace, keys: None|list[str]=None) -> Namespace:
+def iterate_configurations(args: Namespace, keys: "None|list[str]"=None) -> Namespace:
     """
     Given a Namespace and a set of keys,
     combine the values at each key in keys with each other.

@@ -27,7 +27,7 @@ class Dataset(object):
         self._df: pd.DataFrame = pd.read_csv( self.consts['csv'] )
         self.df: pd.DataFrame = self._df.copy()
         self.folds: np.ndarray = self._df['fold'].unique()
-        self.fold: int|None = None
+        self.fold: "int|None" = None
 
         if feature not in self._df.columns:
             s = f"Could not set up dataset {self.name} with feature {self.feature}"
@@ -89,7 +89,7 @@ class Dataset(object):
             self._embeddings[i] = np.squeeze( embeddings_dict[path] )
 
 
-    def set_fold(self, k: int|None):
+    def set_fold(self, k: "int|None"):
         """
         Set the current fold of the dataset. Depending on whether testing or training,
         use data where df['fold'] == k or df['fold'] != k resp.
@@ -109,7 +109,7 @@ class Dataset(object):
         self.fold = k
 
 
-    def get_scores(self, include_gt: bool = False, train: bool=False) -> np.ndarray|tuple[np.ndarray, np.ndarray]:
+    def get_scores(self, include_gt: bool = False, train: bool=False) -> "np.ndarray|tuple[np.ndarray, np.ndarray]":
         """
         Returns the 'score' and ground truth of the dataset for a given feature as numpy arrays.
         Assumes score is saved in a column in the dataframe with the same name as the feature
@@ -152,7 +152,7 @@ class Dataset(object):
             return scores
 
 
-    def get_embeddings(self, train: bool|None=False, return_mapper: bool=False) -> np.ndarray|tuple[np.ndarray, np.ndarray]:
+    def get_embeddings(self, train: "bool|None"=False, return_mapper: bool=False) -> "np.ndarray|tuple[np.ndarray, np.ndarray]":
         """
         Get a numpy array containing the embeddings of the dataset, where each embedding is saved as a row
         If a fold is set (ie `Dataset.fold is not None`), use the `train` parameter to choose between the training
@@ -191,7 +191,7 @@ class Dataset(object):
         return embeddings
 
 
-    def iterate_subgroups(self, use_attributes: str|Iterable[str]|None = None) -> Iterable[ dict[str, Any] ]:
+    def iterate_subgroups(self, use_attributes: "str|Iterable[str]|None" = None) -> "Iterable[ dict[str, Any] ]":
         """
         Using the sensitive attributes in `self.consts['sensitive_attributes']`, yield dictionaries as combinations
         of sensitive attributes. Setting `use_attributes` allows to only use a subset of sensitive attributes.

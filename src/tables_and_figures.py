@@ -206,7 +206,7 @@ def dictsToIndex(columns, rows):
     return columnIndex, rowIndex
 
 
-def fill_data(data_salvador, rows, metric_names, metrics_dict, metric_to_idx: dict[str, int], EXCLUDE_ARCFACE=False):
+def fill_data(data_salvador, rows, metric_names, metrics_dict, metric_to_idx: "dict[str, int]", EXCLUDE_ARCFACE=False):
     """fills a numpy array in the shape of data_salvador with data from metrics.
     The metrics are taken from the keys of metric_to_idx and put at an offset of the value.
     Creates a dataframe from it in the end that also contains the difference.

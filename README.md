@@ -2,6 +2,8 @@
 
 This reposotiry tries to reproduce results of [Salvador (2022)](https://openreview.net/forum?id=nRj0NcmSuxb) using an adaption of [the papers code on github](https://github.com/tiagosalvador/faircal).
 
+For a more detailed explanation on how to run all code, refer to the [step-by-step guide](./guide.md).
+
 ## Requirements
 
 To install requirements, first download [miniconda](https://docs.conda.io/en/latest/miniconda.html).  Then, install the appropriate environment by executing the command below from the current directory.  This will create an environment named `mlrc-faircal`.
@@ -24,13 +26,17 @@ After obtaining these dataset, please read the [Data README](./data/README.md) o
 ## Experiments
 
 Running
+
 ```
-$ python src/main.py
+python src/main.py
 ```
+
 should execute the entire pipeline (crop, embed, cluster, calibrate, evaluate) of this project and save the results in the [experiments folder](./src/experiments/).
-In order to generate the tables and figures used in the reproducability paper, please run
+In order to generate the tables and figures used in the reproducability paper, please run the notebook in `src/Tables and Figures.ipynb` or run the following.
+
 ```
-$ python src/tables_and_figures.py
+python src/tables_and_figures.py
+python src/extension.py
 ```
 
 ## Pre-trained Models
