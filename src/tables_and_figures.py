@@ -587,3 +587,21 @@ def gen_plot_fpr(metrics):
     print("Saving to", "/".join( fname.split("/")[6:] ))
 
     plt.show()
+
+if __name__ == '__main__':
+    metrics = get_metrics()
+
+    gen_table_accuracy(metrics)
+
+    gen_table_fairness(metrics)
+    gen_table_fairness(metrics, full=False)
+
+    gen_table_predictive_equality(metrics)
+    # Add the following thing to the 1st, 2nd, 4th and 5th pbox, because they overlap otherwise...
+    # \rule[-6pt]{0pt}{1mm}
+    # Also, manually remove the metric column because it's only STD anyway
+    gen_table_predictive_equality(metrics, full=False)
+
+    gen_plot_scores(metrics)
+
+    gen_plot_fpr(metrics)
