@@ -7,6 +7,17 @@ from dataset import Dataset
 
 
 def get_ks(confidences, ground_truth):
+    """
+    KS Divergence Score
+    Proposed by
+    Kartik Gupta, Amir Rahimi, Thalaiyasingam Ajanthan, Thomas Mensink, Cristian Sminchisescu,
+    and Richard Hartley. Calibration of neural networks using splines. In International
+    Conference on Learning Representations, 2021.
+    URL https://openreview.net/forum?id=eQe8DEWNN2W.
+
+    Copied from
+    https://github.com/tiagosalvador/faircal/blob/a9a0f1852275b68b027edff2fd9992d32e829ad6/utils.py#L48
+    """
     n = len(ground_truth)
     order_sort = np.argsort(confidences)
     ks = np.max(np.abs(np.cumsum(confidences[order_sort])/n-np.cumsum(ground_truth[order_sort])/n))
@@ -14,6 +25,15 @@ def get_ks(confidences, ground_truth):
 
 
 def get_brier(confidences, ground_truth):
+    """
+    Brier Score
+    Proposed by
+    Morris H DeGroot and Stephen E Fienberg. The comparison and evaluation of forecasters.
+    Journal of the Royal Statistical Society: Series D (The Statistician), 32(1-2):12-22, 1983.
+
+    Copied from
+    https://github.com/tiagosalvador/faircal/blob/a9a0f1852275b68b027edff2fd9992d32e829ad6/utils.py#L55
+    """
     # Compute Brier Score
     brier = np.zeros(confidences.shape)
     brier[ground_truth] = (1-confidences[ground_truth])**2
@@ -23,6 +43,23 @@ def get_brier(confidences, ground_truth):
 
 
 def get_metrics(confidences: np.ndarray, dataset: Dataset, conf: Namespace) -> dict:
+    """
+    Given a list of calibrated scores, compute some metrics indicating its
+    accuracy and fairness.
+
+    Parameters:
+        confidences: np.ndarray - calibrated scores of size N,
+        dataset: Dataset - Complete dataset of size N
+        conf: Namespace - Configuration that determined how the calibrated scores came to be
+
+    Returns:
+        data: dict[str, dict[str, any]] - A dictionary with subgroups as keys and metrics as values
+        Subgroups include 'Global' as overal metrics and one key per subgroup, made by concatenating
+        subgroup values with intermediate '_' (ie 'Asian_Female'). Metrics include
+        - fpr, tpr, thr: np.ndarray (each) - FPR, TPR and thresholds computed using sklearn.metrics.roc_curve
+        - ks: float - KS score
+        - brier: float - brier score
+    """
     data = dict()
 
     df = dataset.df.copy()

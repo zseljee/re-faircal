@@ -18,8 +18,24 @@ from constants import EXPERIMENT_FOLDER
 DO_PBAR = True
 
 def ftc(dataset: Dataset, conf: Namespace) -> np.ndarray:
-    """TODO"""
-    print("Setting up...")
+    """
+    Train a shallow NN on the absolute difference of embeddings to give
+    confidence scores, calibrate these to get calibrated scores.
+    Original implementation by
+    P. Terhörst, M. L. Tran, N. Damer, F. Kirchbuchner, and A. Kuijper.
+        Comparison-level mitigation of ethnic bias in face recognition.
+        In 2020 8th International Workshop on Biometrics and Forensics
+        (IWBF), pp. 1-6, 2020a. doi: 10.1109/IWBF49977.2020.9107956.
+
+    Parameters:
+        dataset: Dataset - Instance of the Dataset class of this project
+        conf: Namespace - A namespace containing info about the configuration
+
+    Returns:
+        scores: np.ndarray - Calibrated scores
+    """
+
+    print("Setting up dataframes...")
     # Set up dataframe from dataset
     df = dataset.df.copy()
     df['test'] = (df['fold'] == dataset.fold)
@@ -28,13 +44,17 @@ def ftc(dataset: Dataset, conf: Namespace) -> np.ndarray:
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Using device", device)
 
+    # Get untrained model instance
     model = FTCNN()
 
     savepath = get_savepath(dataset=dataset, conf=conf)
 
+    # Set up dataloaders
+    print("Setting up dataloaders...")
     loader_train = get_loader(dataset=dataset, train=True, shuffle=False)
     loader_test = get_loader(dataset=dataset, train=False, shuffle=False)
 
+    # If no model is found, train one
     if not os.path.isfile(savepath):
         print("Training...")
 
@@ -44,14 +64,21 @@ def ftc(dataset: Dataset, conf: Namespace) -> np.ndarray:
             loaders={'train': loader_train, 'test': loader_test},
         )
         print(f"Test: loss={test_loss:.2e}, acc={acc:4.1f}%, fnr={fnr:.1f}")
+
         print("\nSaving model to", savepath)
         torch.save(model.state_dict(), savepath)
+
     else:
+        # Load pre-trained model
         print("Loading model from", savepath)
         model.load_state_dict(torch.load(savepath))
 
+    # Use trained model to get confidence scores to calibrate
+    print("Obtaining (uncalibrated) scores...")
     scores, ground_truth, _,_,_ = test_loop(dataloader=loader_train, model=model, device=device, loss_fn=None)
 
+    # Set up a calibrator on those scores using train data
+    print("Calibrating scores...")
     calibrator = BetaCalibration(
         scores=scores[:,1].numpy(),
         ground_truth=ground_truth.numpy(),
@@ -59,15 +86,30 @@ def ftc(dataset: Dataset, conf: Namespace) -> np.ndarray:
         score_min=1.,
     )
 
-
+    # Use calibrator on entire dataset
     return calibrator.predict(df['score'])
 
 
 def get_loss_fn(subgroups: list[str], lamb:float = .5):
+    """
+    Wrapper to set up individual fairness score.
+
+    Parameters:
+        subgroups: list[str] - The set of all subgroups to consider
+        lamb: float - Value to weigh between CrossEntropyLoss and Fair Individual Loss
+
+    Returns:
+        loss_fn: callable - Some loss function with signature as defined below
+    """
+
+    # Use CrossEntropyLoss together with fair individual loss
     CELoss = nn.CrossEntropyLoss()
 
+    # Set up Fair Individual Loss function
     def fair_individual_loss(g1: list[str], g2: list[str], y: torch.Tensor, logits: torch.Tensor):
         """
+        [Copied from original paper]
+
         Parameters:
             g1: list[str] - group left image, batched. Contains items from `subgroups`
             g2: list[str] - group right image, batched. Contains items from `subgroups`
@@ -77,14 +119,21 @@ def get_loss_fn(subgroups: list[str], lamb:float = .5):
         Returns:
             loss: float - The fair individual loss
         """
+        # Use np.ndarrays to allow masking
         g1 = np.array(g1)
         g2 = np.array(g2)
+
         loss = 0.
+
+        # Try each combination of subgroups
         for i in subgroups:
             select_i = np.logical_and(g1 == i, g2 == i)
             for j in subgroups:
                 select_j = np.logical_and(g1 == j, g2 == j)
+
+                # Check for non-empty group
                 if (sum(select_i) > 0) and (sum(select_j) > 0):
+
                     select = y[select_i].reshape(-1, 1) == y[select_j]
                     aux = torch.cdist(logits[select_i, :], logits[select_j, :])[select].pow(2).sum()
                     loss += aux/(sum(select_i)*sum(select_j))
@@ -283,23 +332,31 @@ def train(model: FTCNN,
 
     assert 'train' in loaders and 'test' in loaders, "Please specify a train and test set in `loaders` parameter."
 
+    # Use loaders to find the set of all subgroups, used to set up the loss function
+    # e.g. for RFW this would be the set ['Asian', 'African', 'Caucasian', 'Indian']
     subgroups = list(set(loaders['train'].dataset.subgroups) | set(loaders['test'].dataset.subgroups))
     loss_fn = get_loss_fn(subgroups=subgroups, lamb=.5)
 
+    # Use Adam optimizer, as specified by the paper
     optimizer = optim.Adam(
         params=model.parameters(),
         lr=lr,
         weight_decay=weight_decay,
     )
 
-    pbar = None
+    # Some metrics to keep track of during training
     test_loss, acc, fnr = 0., 0., 0.
     val_losses = []
+
+    # Set up progress bar
+    pbar = None
     if DO_PBAR:
         pbar = tqdm.tqdm(desc="Training  ", total=epochs, mininterval=.5, unit="epoch", ncols=150, position=0, leave=False)
         pbar.set_postfix(loss=f"{test_loss:.2e}", acc=f"{acc:4.1f}%", fnr=f"{fnr:.1f}")
 
+    # Main training loop
     for epoch in range(epochs):
+        # Train one epoch
         train_loop(
             epoch=epoch,
             model=model,
@@ -308,25 +365,30 @@ def train(model: FTCNN,
             loss_fn=loss_fn,
             optimizer=optimizer,
         )
+        # Eval one epoch
         _, _, val_loss, acc, fnr = test_loop(
             dataloader=loaders['val' if 'val' in loaders else 'test'],
             model=model,
             device=device,
             loss_fn=loss_fn
         )
+        # Keep track of running loss
         val_losses.append(val_loss)
 
 
+        # Update progress bar or just output the scores
         if pbar is not None:
             pbar.set_postfix(loss=f"{val_loss:.2e}", acc=f"{acc:4.1f}%", fnr=f"{fnr:.1f}", refresh=False)
             pbar.update(1)
         else:
             print(f"Epoch {epoch:4}: loss={test_loss:.2e}, acc={acc:4.1f}%, fnr={fnr:.1f}")
 
+    # Close pbar
     if pbar is not None:
         pbar.close()
         print() # To clear the TQDM semi-empty line
 
+    # Finally test on test data
     _, _, test_loss, acc, fnr = test_loop(
         dataloader=loaders['test'],
         model=model,

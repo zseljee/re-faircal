@@ -11,8 +11,8 @@ from .utils import thr_at_fpr_from_score
 def fsn(dataset: Dataset, conf: Namespace) -> np.ndarray:
     """
     FSN approach - Use K-means to obtain smaller, similar
-    groups then shift these scores to match a global FPR threshold.
-    Finally, use Beta Calibration to obtain a proper distribution.
+    groups. Then shift these scores to match a global FPR threshold.
+    Finally, use Beta Calibration to obtain a calibrated score.
 
     Parameters:
         dataset: Dataset - A dataset instance
