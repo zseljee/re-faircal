@@ -6,7 +6,7 @@ import pandas as pd
 import pickle
 import itertools
 
-from argparse import ArgumentParser, Namespace
+from argparse import Namespace
 from collections import defaultdict
 # from IPython.core.display import HTML, display_html as display
 from sklearn.metrics import roc_curve
@@ -15,13 +15,10 @@ from approaches.utils import tpr_at_fpr
 from constants import EXPERIMENT_FOLDER, DATA_FOLDER
 from utils import get_experiment_folder
 
-# parser = ArgumentParser()
-# parser.add_argument("--use-arcface", action="store_true")
-# args = parser.parse_args()
-# EXCLUDE_ARCFACE = not args.use_arcface
-# del parser
-# del args
-# print("Ignoring non-existent ArcFace results" if EXCLUDE_ARCFACE else "Using results for ArcFace")
+try:
+    from IPython.display import display, HTML
+except:
+    pass
 
 teamName = 'FACT-AI'
 
@@ -58,10 +55,12 @@ def aad(values):
     mean = values.mean()
     return np.abs( values - mean ).mean()
 
+
 def mad(values):
     values = np.array(values)
     mean = values.mean()
     return np.abs( values - mean ).max()
+
 
 def get_metrics_fold(results):
     # ! In percentages!
@@ -111,6 +110,7 @@ def get_metrics_fold(results):
         'FPR @ 1.0\% global FPR - STD': np.std( fpr_1fpr ),
     }
 
+
 def get_metrics():
     data = dict()
 
@@ -121,7 +121,7 @@ def get_metrics():
 
         _conf = Namespace(calibration_method='beta', **dict(zip(configurations.keys(), conf)))
         exp_folder = get_experiment_folder(_conf)
-        exp_folder = os.path.join(EXPERIMENT_FOLDER,_conf.dataset, _conf.feature, _conf.approach, _conf.calibration_method)
+        # exp_folder = os.path.join(EXPERIMENT_FOLDER,_conf.dataset, _conf.feature, _conf.approach, _conf.calibration_method)
         fname = os.path.join( exp_folder , 'results.npy' )
 
         if os.path.isfile(fname):
@@ -145,17 +145,12 @@ def get_metrics():
             data[conf]['score'] = np.vstack([results[fold]['scores'] for fold in folds])
         else:
             print("Could not load experiment", _conf)
+
+            # Format for privacy of publishers
+            fname = '/'.join( fname.split('/')[6:] )
             print("Please save results at", fname)
+
     return data
-
-metrics = get_metrics()
-
-
-if False:
-    for conf in metrics:
-        print(conf)
-        for metric in metrics[conf]:
-            print(f"\t-{metric:40}={metrics[conf][metric]:.4f}")
 
 
 def rename(val):
@@ -252,9 +247,12 @@ def show_and_write_table(table_df: pd.DataFrame, caption: str, label: str, save_
     """Write the table to the save_as file with the given caption and label.
     """
     # Only useful in Jupyter...
-    # dif_col_formatter = dict((col, '<b>{:+.2f}</b>') for col in table_df.columns if col[-1] == 'diff.')
-    # styler = table_df.style.format(dif_col_formatter, na_rep='TBD', precision=2, escape="latex")
-    # display(HTML(styler.to_html()))
+    try:
+        dif_col_formatter = dict((col, '<b>{:+.2f}</b>') for col in table_df.columns if col[-1] == 'diff.')
+        styler = table_df.style.format(dif_col_formatter, na_rep='TBD', precision=2, escape="latex")
+        display(HTML(styler.to_html()))
+    except:
+        pass
 
     # Meta-setup
     dif_col_formatter = dict((col, '{:+.2f}') for col in table_df.columns if col[-1] == 'diff.')
@@ -262,7 +260,6 @@ def show_and_write_table(table_df: pd.DataFrame, caption: str, label: str, save_
     ncolblocks = len(table_df.columns)//3
 
     fname = os.path.join(EXPERIMENT_FOLDER, save_as)
-    print("Saving to",fname)
     table_code: str = styler.to_latex(
         None,
         multicol_align='c|',
@@ -295,8 +292,12 @@ def show_and_write_table(table_df: pd.DataFrame, caption: str, label: str, save_
     with open(fname, 'w') as f:
         f.write(table_code)
 
+    # Format for privacy publishers
+    fname = '/'.join( fname.split('/')[6:] )
+    print("Saving to",fname)
 
-def gen_table_accuracy():
+
+def gen_table_accuracy(metrics):
     # Data from Table 2 in Salvador (2022), excluding AUROC columns (order is kept)
     data_salvador = np.array([
         [18.42, 34.88,  11.18, 26.04,  33.61, 58.87,  86.27, 90.11], # Baseline
@@ -326,10 +327,8 @@ def gen_table_accuracy():
                          save_as = 'table_accuracy.tex'
     )
 
-gen_table_accuracy()
 
-
-def gen_table_fairness(full=True):
+def gen_table_fairness(metrics, full=True):
     """
     full determines whether the AAD and MAD should be include
     """
@@ -376,11 +375,8 @@ def gen_table_fairness(full=True):
                          save_as = 'table_fairness.tex' if full else 'table_fairness_partial.tex',
     )
 
-gen_table_fairness()
-gen_table_fairness(full=False)
 
-
-def gen_table_predictive_equality(full=True):
+def gen_table_predictive_equality(metrics, full=True):
     """
     full determines whether the AAD and MAD should be include
     """
@@ -431,16 +427,9 @@ def gen_table_predictive_equality(full=True):
     )
 
 
-gen_table_predictive_equality()
-# Add the following thing to the 1st, 2nd, 4th and 5th pbox, because they overlap otherwise...
-# \rule[-6pt]{0pt}{1mm}
-# Also, manually remove the metric column because it's only STD anyway
-gen_table_predictive_equality(full=False)
+def gen_plot_scores(metrics):
 
-
-def gen_plot_scores():
-
-    plt.style.use('src/violinPlot.mplstyle')
+    plt.style.use(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'violinPlot.mplstyle'))
 
     subgroups = ['African', 'Asian', 'Caucasian', 'Indian']
 
@@ -455,13 +444,16 @@ def gen_plot_scores():
         conf = (dataset, feature, approach)
         all_scores = metrics[conf]['score']
 
-        calibrated_score = np.full(len(_df), np.nan)
-        for fold in range(1,6):
-            select = _df['fold'] == fold
-            calibrated_score[select] = all_scores[fold-1,select]
+        # calibrated_score = np.full(len(_df), np.nan)
+        # for fold in range(1,6):
+        #     select = _df['fold'] == fold
+        #     calibrated_score[select] = all_scores[fold-1,select]
+        # df = _df.dropna(subset=['calibrated_score']).copy()
 
-        _df['calibrated_score'] = all_scores[-1,:]
-        df = _df.dropna(subset=['calibrated_score'])
+
+        # Salvador et al. only evaluates on fold 5
+        _df['calibrated_score'] = all_scores[4,:]
+        df = _df[ _df['fold'] == 5 ].copy()
 
         sns.violinplot(
             x ='ethnicity',
@@ -475,6 +467,10 @@ def gen_plot_scores():
             palette={"Genuine": "royalblue", "Imposter": "skyblue"},
             ax=ax,
         )
+
+        ax.set_xlabel("")
+        ax.set_ylabel("Cosine Similarity" if approach == "uncalibrated" else "Probability")
+        ax.tick_params(axis="x", rotation=50)
 
         fpr, tpr, thr = roc_curve(y_true=df['same'],
                                 y_score=df['calibrated_score'],
@@ -497,21 +493,27 @@ def gen_plot_scores():
                 xmax=j+.5,
                 lw=3, ls='-', color='crimson')
 
-        ax.set_title(approach)
+        ax.set_title(rename(approach))
         ax.legend(loc='lower right')
+
+    fig.subplots_adjust(
+        top=.8,
+        wspace=.4
+    )
+
+    fname = os.path.join(EXPERIMENT_FOLDER, 'scores_plot.png')
+    fig.savefig(fname)
+    print("Saving to", "/".join( fname.split("/")[6:] ))
 
     plt.show()
 
-gen_plot_scores()
 
+def gen_plot_fpr(metrics):
 
-def gen_plot_fpr():
-
-    plt.style.use('src/fprPlot.mplstyle')
+    plt.style.use(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'fprPlot.mplstyle'))
 
     dataset = 'rfw'
-    # approaches = ['baseline', 'fsn', 'ftc', 'faircal', 'oracle']
-    approaches = ['baseline', 'fsn', 'faircal']
+    approaches = ['baseline', 'fsn', 'ftc', 'faircal', 'oracle']
     feature = 'facenet-webface'
     _df = pd.read_csv( os.path.join(DATA_FOLDER, dataset, f'{dataset}.csv') )
 
@@ -527,6 +529,7 @@ def gen_plot_fpr():
         conf = (dataset, feature, approach)
         all_scores = metrics[conf]['score']
 
+        # UNCOMMENT THIS if you want to use full dataset (ie multiple folds)
         # calibrated_score = np.full(len(_df), np.nan)
         # for fold in range(1,6):
         #     select = _df['fold'] == fold
@@ -534,7 +537,9 @@ def gen_plot_fpr():
 
         # _df['calibrated_score'] = all_scores[-1,:]
         # df = _df.dropna(subset=['calibrated_score'])
-        _df['calibrated_score'] = all_scores[-1,:]
+
+        # Salvador et al. only evaluates on fold 5
+        _df['calibrated_score'] = all_scores[4,:]
         df = _df[ _df['fold'] == 5 ].copy()
 
 
@@ -555,22 +560,30 @@ def gen_plot_fpr():
                 drop_intermediate=False)
 
             _fpr_glob = np.interp(thr_sub, thr_glob[::-1], fpr_glob[::-1])
-            ax.plot( _fpr_glob, fpr_sub, label=attr, lw=2 )
+            ax.plot( _fpr_glob, fpr_sub, label=attr )
 
         ax.plot([0.05, 0.05],[0,1],'--k',linewidth=2)
 
         ax.legend(loc='upper left')
-        ax.set_title(approach)
+        ax.set_title(rename(approach))
 
         ax.set_xlim(0.0, 0.1)
-        ax.set_xticks(np.linspace(0,.1,6))
+        ax.set_xticks(np.linspace(0,.1,3))
         ax.set_xlabel("Global FPR")
 
         ax.set_ylim(0.0, 0.18)
         ax.set_yticks(np.linspace(0,.15,4))
+        ax.set_ylabel("Group FPR")
 
     fig.suptitle(f"Subgroup FPR for a global threshold at 5% FPR, using feature {feature} and dataset {dataset}")
 
-    plt.show()
+    fig.subplots_adjust(
+        top=.8,
+        wspace=.4
+    )
 
-gen_plot_fpr()
+    fname = os.path.join(EXPERIMENT_FOLDER, 'fpr_plot.png')
+    fig.savefig(fname)
+    print("Saving to", "/".join( fname.split("/")[6:] ))
+
+    plt.show()
