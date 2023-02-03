@@ -7,7 +7,7 @@ from preprocess.constants import (
     OUTPUT_CSV as PREPROCESS_OUTPUT_CSV,
 )
 
-EXPERIMENT_FOLDER = os.path.abspath( './experiments' )
+EXPERIMENT_FOLDER = os.path.abspath( os.path.join( os.path.dirname(__file__), '../', 'experiments/' ) )
 
 AVAILABLE_DATASETS = {
     'rfw': {
